@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("postgresql://postgres:[YOUR-PASSWORD]@db.bbawjkryrotwrkwkitmh.supabase.co:5432/postgres")
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -31,7 +31,7 @@ model Horse {
   feedingPlanJson   String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   rides             RideLog[]
   washes            WashLog[]
   vetItems          VetItem[]
