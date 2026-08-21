@@ -54,6 +54,17 @@ export function Navbar() {
             </Link>
 
             <Link
+              href="/care"
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                isActive('/care')
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              Care
+            </Link>
+
+            <Link
               href="/horses/new"
               className="ml-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition shadow-sm"
             >

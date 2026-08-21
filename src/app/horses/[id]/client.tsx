@@ -139,6 +139,43 @@ export function HorseDetailClient({
             )}
           </div>
 
+          {/* Care schedule */}
+          <div className="bg-white rounded-lg border p-5 mb-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-700">Care Schedule</h2>
+                <p className="mt-1 text-xs text-gray-500">Upcoming veterinary and routine care.</p>
+              </div>
+              <Link
+                href={`/care?horseId=${horse.id}`}
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+              >
+                Manage care
+              </Link>
+            </div>
+
+            {horse.vetItems?.filter((item: any) => item.nextDueDate).length ? (
+              <div className="divide-y divide-gray-100">
+                {horse.vetItems
+                  .filter((item: any) => item.nextDueDate)
+                  .slice(0, 4)
+                  .map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+                      <div>
+                        <p className="font-medium text-gray-900">{item.itemName}</p>
+                        <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-500">
+                          {item.itemType.replaceAll('_', ' ')}
+                        </p>
+                      </div>
+                      <span className="text-gray-600">{formatDate(item.nextDueDate)}</span>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-500">No care scheduled.</p>
+            )}
+          </div>
+
           {/* Activity */}
           <div className="bg-white rounded-lg border">
             <div className="p-5 border-b">
@@ -197,4 +234,4 @@ export function HorseDetailClient({
       )}
     </>
   );
-} 
+}

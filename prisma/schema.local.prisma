@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/local-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("STAFF")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Horse {
+  id                String    @id @default(cuid())
+  name              String
+  photo             String?
+  age               Int?
+  breed             String?
+  colorMarkings     String?
+  notes             String?
+  rideIntervalDays  Int       @default(3)
+  washIntervalDays  Int       @default(14)
+  status            String    @default("ACTIVE")
+  feedingPlanJson   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  rides             RideLog[]
+  washes            WashLog[]
+  vetItems          VetItem[]
+  alerts            Alert[]
+}
+
+model Trainer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  rides     RideLog[]
+}
+
+model RideLog {
+  id              String    @id @default(cuid())
+  horseId         String
+  horse           Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  dateTime        DateTime  @default(now())
+  riderName       String
+  trainerId       String?
+  trainer         Trainer?  @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  rideType        String    @default("FLAT")
+  durationMinutes Int?
+  notes           String?
+  createdAt       DateTime  @default(now())
+}
+
+model WashLog {
+  id        String   @id @default(cuid())
+  horseId   String
+  horse     Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  dateTime  DateTime @default(now())
+  type      String   @default("FULL_WASH")
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model VetItem {
+  id            String    @id @default(cuid())
+  horseId       String
+  horse         Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  itemType      String
+  itemName      String
+  lastDoneDate  DateTime?
+  intervalDays  Int?
+  nextDueDate   DateTime?
+  vetName       String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  type        String
+  severity    String    @default("WARNING")
+  title       String
+  message     String
+  horseId     String?
+  horse       Horse?    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  alertKey    String    @unique
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+}
+
+model Settings {
+  id                      String   @id @default("global")
+  defaultRideIntervalDays Int      @default(3)
+  defaultWashIntervalDays Int      @default(14)
+  vetAlertLeadTimeDays    Int      @default(7)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

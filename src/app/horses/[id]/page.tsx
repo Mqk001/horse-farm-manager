@@ -13,6 +13,7 @@ export default async function HorseDetailPage({ params }: { params: Promise<{ id
     include: {
       rides: { orderBy: { dateTime: 'desc' }, take: 20 },
       washes: { orderBy: { dateTime: 'desc' }, take: 20 },
+      vetItems: { orderBy: { nextDueDate: 'asc' } },
     },
   });
 

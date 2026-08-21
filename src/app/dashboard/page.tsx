@@ -5,12 +5,40 @@ import { getDaysSince } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const horses = await prisma.horse.findMany({
-    include: {
-      rides: { orderBy: { dateTime: 'desc' }, take: 1 },
-      washes: { orderBy: { dateTime: 'desc' }, take: 1 },
-    },
-  });
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const nextWeek = new Date();
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [horses, ridesThisWeek, washesThisWeek, recentRides, recentWashes, careDueSoon] =
+    await Promise.all([
+      prisma.horse.findMany({
+        include: {
+          rides: { orderBy: { dateTime: 'desc' }, take: 1 },
+          washes: { orderBy: { dateTime: 'desc' }, take: 1 },
+        },
+      }),
+      prisma.rideLog.count({ where: { dateTime: { gte: oneWeekAgo } } }),
+      prisma.washLog.count({ where: { dateTime: { gte: oneWeekAgo } } }),
+      prisma.rideLog.findMany({
+        orderBy: { dateTime: 'desc' },
+        take: 5,
+        include: { horse: true },
+      }),
+      prisma.washLog.findMany({
+        orderBy: { dateTime: 'desc' },
+        take: 5,
+        include: { horse: true },
+      }),
+      prisma.vetItem.findMany({
+        where: { nextDueDate: { lte: nextWeek } },
+        include: { horse: true },
+        orderBy: { nextDueDate: 'asc' },
+        take: 6,
+      }),
+    ]);
 
   const totalHorses = horses.length;
 
@@ -24,29 +52,6 @@ export default async function Dashboard() {
     const washOverdue =
       daysSinceWash !== null && daysSinceWash > horse.washIntervalDays;
     return rideOverdue || washOverdue;
-  });
-
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-  const ridesThisWeek = await prisma.rideLog.count({
-    where: { dateTime: { gte: oneWeekAgo } },
-  });
-
-  const washesThisWeek = await prisma.washLog.count({
-    where: { dateTime: { gte: oneWeekAgo } },
-  });
-
-  const recentRides = await prisma.rideLog.findMany({
-    orderBy: { dateTime: 'desc' },
-    take: 5,
-    include: { horse: true },
-  });
-
-  const recentWashes = await prisma.washLog.findMany({
-    orderBy: { dateTime: 'desc' },
-    take: 5,
-    include: { horse: true },
   });
 
   const activities = [
@@ -194,6 +199,44 @@ export default async function Dashboard() {
             </div>
           </div>
         )}
+
+        <div className="mb-8 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Care Due Soon</h2>
+              <p className="mt-1 text-sm text-gray-500">Veterinary and routine care due within seven days.</p>
+            </div>
+            <Link href="/care" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+              Open planner
+            </Link>
+          </div>
+          {careDueSoon.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-500">No scheduled care due soon.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {careDueSoon.map((item) => {
+                const dueDate = item.nextDueDate!;
+                const overdue = dueDate < todayStart;
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/care?horseId=${item.horseId}`}
+                    className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{item.itemName}</p>
+                      <p className="mt-1 text-sm text-gray-500">{item.horse.name} · {item.itemType.replaceAll('_', ' ')}</p>
+                    </div>
+                    <span className={`text-sm font-semibold ${overdue ? 'text-red-600' : 'text-gray-600'}`}>
+                      {overdue ? 'Overdue · ' : ''}
+                      {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
