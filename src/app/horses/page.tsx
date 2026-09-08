@@ -1,237 +1,91 @@
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
 import Link from 'next/link';
+import { ArrowUpRight, Clock3, Search, ShieldCheck, Sparkles } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function HorsesPage() {
-  const horses = await prisma.horse.findMany({
-    orderBy: { name: 'asc' },
-    include: {
-      rides: { orderBy: { dateTime: 'desc' }, take: 1 },
-      washes: { orderBy: { dateTime: 'desc' }, take: 1 },
-    },
+const statusLabels: Record<string, string> = { ACTIVE: 'Active', IN_TRAINING: 'In training', RESTING: 'Resting', MEDICAL_HOLD: 'Medical hold', RETIRED: 'Retired' };
+
+function lastActivity(days: number | null) {
+  if (days === null) return 'Not recorded';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+}
+
+export default async function HorsesPage({ searchParams }: { searchParams: { q?: string; status?: string; overdue?: string } }) {
+  const horses = await prisma.horse.findMany({ orderBy: { name: 'asc' }, include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } } });
+  const attention = horses.filter((horse) => {
+    const ride = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime) : null;
+    const groom = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime) : null;
+    return (ride !== null && ride > horse.rideIntervalDays) || (groom !== null && groom > horse.washIntervalDays);
+  }).length;
+
+  const query = (searchParams.q ?? '').trim().toLowerCase();
+  const filtered = horses.filter(horse => {
+    const ride = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime) : null;
+    const groom = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime) : null;
+    const overdue = (ride !== null && ride > horse.rideIntervalDays) || (groom !== null && groom > horse.washIntervalDays);
+    return (!query || [horse.name, horse.breed ?? ''].some(value => value.toLowerCase().includes(query)))
+      && (!searchParams.status || horse.status === searchParams.status)
+      && (searchParams.overdue !== 'yes' || overdue);
   });
 
-  function getStatusStyle(horse: any, rideOverdue: boolean, washOverdue: boolean) {
-    if (rideOverdue || washOverdue) {
-      return {
-        bg: 'bg-red-100',
-        text: 'text-red-700',
-        border: 'border-red-300',
-        gradient: 'from-red-400 to-orange-500',
-        label: 'Needs Attention'
-      };
-    }
-
-    switch (horse.status) {
-      case 'ACTIVE':
-        return {
-          bg: 'bg-emerald-100',
-          text: 'text-emerald-700',
-          border: 'border-emerald-300',
-          gradient: 'from-emerald-400 to-green-500',
-          label: 'Active'
-        };
-      case 'IN_TRAINING':
-        return {
-          bg: 'bg-blue-100',
-          text: 'text-blue-700',
-          border: 'border-blue-300',
-          gradient: 'from-blue-400 to-indigo-500',
-          label: 'In Training'
-        };
-      case 'RESTING':
-        return {
-          bg: 'bg-purple-100',
-          text: 'text-purple-700',
-          border: 'border-purple-300',
-          gradient: 'from-purple-400 to-pink-500',
-          label: 'Resting'
-        };
-      case 'MEDICAL_HOLD':
-        return {
-          bg: 'bg-amber-100',
-          text: 'text-amber-700',
-          border: 'border-amber-300',
-          gradient: 'from-amber-400 to-orange-500',
-          label: 'Medical Hold'
-        };
-      case 'RETIRED':
-        return {
-          bg: 'bg-gray-100',
-          text: 'text-gray-700',
-          border: 'border-gray-300',
-          gradient: 'from-gray-400 to-gray-500',
-          label: 'Retired'
-        };
-      default:
-        return {
-          bg: 'bg-gray-100',
-          text: 'text-gray-700',
-          border: 'border-gray-300',
-          gradient: 'from-gray-400 to-gray-500',
-          label: horse.status?.replaceAll('_', ' ') || 'Unknown'
-        };
-    }
-  }
-
-  function formatDays(days: number | null) {
-    if (days === null || days === undefined) return null;
-    if (days === 0) return 'Today';
-    return `${days}d ago`;
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Horses</h1>
-            <p className="text-gray-600 mt-1">
-              {horses.length} {horses.length === 1 ? 'horse' : 'horses'} in your care
-            </p>
-          </div>
-          <Link
-            href="/horses/new"
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 shadow-sm hover:shadow-md transition-all"
-          >
-            + Add Horse
-          </Link>
+    <main className="page-shell">
+      <header className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="eyebrow">The stable</p><h1 className="mt-3 font-display text-4xl sm:text-5xl">Your horses</h1><p className="mt-3 max-w-xl text-sm leading-6 text-[#68736b]">Every profile, care rhythm, and recent activity in one considered view.</p></div>
+        <div className="flex gap-3 text-sm">
+          <div className="premium-card rounded-xl px-4 py-3"><span className="font-display text-xl">{horses.length}</span><span className="ml-2 text-xs text-[#778078]">total</span></div>
+          <div className="premium-card rounded-xl px-4 py-3"><span className={`font-display text-xl ${attention ? 'text-[#a24b35]' : 'text-[#315c47]'}`}>{attention}</span><span className="ml-2 text-xs text-[#778078]">need attention</span></div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        {horses.length === 0 ? (
-          <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-16 text-center">
-            <div className="text-6xl mb-4">🐴</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No horses yet</h3>
-            <p className="text-gray-600 mb-6">Get started by adding your first horse</p>
-            <Link
-              href="/horses/new"
-              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Add First Horse
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {horses.map((horse) => {
-              const lastRide = horse.rides[0];
-              const lastWash = horse.washes[0];
+      <form className="reinwell-form premium-card mb-6 grid gap-4 rounded-2xl p-4 sm:grid-cols-2" action="/horses">
+        <label>Search horses<input type="search" name="q" defaultValue={searchParams.q} placeholder="Name or breed" /></label>
+        <label>Status<select name="status" defaultValue={searchParams.status ?? ''}><option value="">All statuses</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Care needs<select name="overdue" defaultValue={searchParams.overdue ?? ''}><option value="">All horses</option><option value="yes">Overdue ride or grooming</option></select></label>
+        <div className="flex items-end gap-3"><button className="button-primary">Apply filters</button><Link className="button-secondary" href="/horses">Clear</Link></div>
+      </form>
+      <p role="status" className="mb-5 text-sm text-[#667169]">{filtered.length} of {horses.length} horses</p>
+      {horses.length > 0 && filtered.length === 0 && <div className="premium-card rounded-2xl p-10 text-center"><h2 className="font-display text-2xl">No matching horses</h2><p className="mt-2 text-sm">Try another name or clear your filters.</p></div>}
 
-              const daysSinceRide = lastRide ? getDaysSince(lastRide.dateTime) : null;
-              const daysSinceWash = lastWash ? getDaysSince(lastWash.dateTime) : null;
-
-              const rideOverdue =
-                daysSinceRide !== null && daysSinceRide > horse.rideIntervalDays;
-              const washOverdue =
-                daysSinceWash !== null && daysSinceWash > horse.washIntervalDays;
-
-              const statusStyle = getStatusStyle(horse, rideOverdue, washOverdue);
-
-              return (
-                <div
-                  key={horse.id}
-                  className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-                >
-                  <div className={`h-2 bg-gradient-to-r ${statusStyle.gradient}`} />
-
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4 gap-3">
-                      <div className="flex-1 min-w-0">
-                        <Link href={`/horses/${horse.id}`} className="group">
-                          <h3 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                            {horse.name}
-                          </h3>
-                        </Link>
-                        {horse.breed && (
-                          <p className="text-sm text-gray-600 mt-1">{horse.breed}</p>
-                        )}
-                      </div>
-
-                      <span
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-full ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border} whitespace-nowrap`}
-                      >
-                        {statusStyle.label}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {horse.age && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-400">📅</span>
-                          <span className="text-gray-600">{horse.age} years old</span>
-                        </div>
-                      )}
-                      {horse.colorMarkings && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-400">🎨</span>
-                          <span className="text-gray-600 truncate">{horse.colorMarkings}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="border-t border-gray-100 pt-4 space-y-2.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-2">
-                          <span>🏇</span>
-                          Last ridden:
-                        </span>
-                        <span className={`font-semibold ${rideOverdue ? 'text-red-600' : 'text-gray-900'}`}>
-                          {formatDays(daysSinceRide) ?? 'Never'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-2">
-                          <span>🧼</span>
-                          Last groomed:
-                        </span>
-                        <span className={`font-semibold ${washOverdue ? 'text-orange-600' : 'text-gray-900'}`}>
-                          {formatDays(daysSinceWash) ?? 'Never'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {(rideOverdue || washOverdue) && (
-                      <div className="mt-4 pt-4 border-t border-red-100">
-                        <div className="flex items-center gap-2 text-sm text-red-700 font-medium">
-                          <span>⚠️</span>
-                          <span>
-                            {rideOverdue && washOverdue
-                              ? 'Ride and grooming overdue'
-                              : rideOverdue
-                              ? 'Ride overdue'
-                              : 'Grooming overdue'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-                      <Link
-                        href={`/horses/${horse.id}`}
-                        className="text-sm text-blue-600 font-medium hover:text-blue-700"
-                      >
-                        View Details
-                      </Link>
-
-                      <Link
-                        href={`/horses/${horse.id}/edit`}
-                        className="text-sm text-gray-600 font-medium hover:text-gray-900"
-                      >
-                        Edit
-                      </Link>
-                    </div>
+      {horses.length === 0 ? (
+        <div className="premium-card flex min-h-96 flex-col items-center justify-center rounded-3xl px-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e4ece5] text-[#315c47]"><Sparkles className="h-7 w-7" /></div>
+          <h2 className="mt-6 font-display text-3xl">Begin your stable</h2><p className="mt-2 max-w-sm text-sm leading-6 text-[#778078]">Create the first horse profile to start tracking activity and care.</p>
+          <Link href="/horses/new" className="button-primary mt-6">Add your first horse</Link>
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+          {filtered.map((horse, index) => {
+            const rideDays = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime) : null;
+            const groomDays = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime) : null;
+            const rideOverdue = rideDays !== null && rideDays > horse.rideIntervalDays;
+            const groomOverdue = groomDays !== null && groomDays > horse.washIntervalDays;
+            const needsAttention = rideOverdue || groomOverdue;
+            const palette = ['bg-[#dce7df] text-[#315c47]', 'bg-[#e9e1d3] text-[#806537]', 'bg-[#dfe6e8] text-[#526975]', 'bg-[#e7dedb] text-[#81594c]'][index % 4];
+            return (
+              <Link key={horse.id} href={`/horses/${horse.id}`} className="premium-card group overflow-hidden rounded-3xl transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+                <div className="flex items-start justify-between p-6 pb-5">
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-display text-2xl ${palette}`}>{horse.name.charAt(0).toUpperCase()}</div>
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${needsAttention ? 'bg-[#f4e5df] text-[#a24b35]' : 'bg-[#e4ece5] text-[#315c47]'}`}>{needsAttention ? 'Attention' : statusLabels[horse.status] ?? horse.status}</span>
+                </div>
+                <div className="px-6 pb-6">
+                  <div className="flex items-end justify-between gap-4"><div className="min-w-0"><h2 className="truncate font-display text-3xl">{horse.name}</h2><p className="mt-1 truncate text-xs font-medium text-[#7b837c]">{[horse.breed, horse.age ? `${horse.age} years` : null].filter(Boolean).join(' · ') || 'Profile details pending'}</p></div><ArrowUpRight className="h-5 w-5 shrink-0 text-[#b0b5b0] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#315c47]" /></div>
+                  <div className="my-5 h-px bg-[#e6e3da]" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`rounded-2xl p-3 ${rideOverdue ? 'bg-[#f7ebe6]' : 'bg-white/65'}`}><div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#909690]"><Clock3 className="h-3 w-3" /> Last ride</div><p className={`mt-2 text-xs font-semibold ${rideOverdue ? 'text-[#a24b35]' : 'text-[#3d4b42]'}`}>{lastActivity(rideDays)}</p></div>
+                    <div className={`rounded-2xl p-3 ${groomOverdue ? 'bg-[#f7ebe6]' : 'bg-white/65'}`}><div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#909690]"><ShieldCheck className="h-3 w-3" /> Grooming</div><p className={`mt-2 text-xs font-semibold ${groomOverdue ? 'text-[#a24b35]' : 'text-[#3d4b42]'}`}>{lastActivity(groomDays)}</p></div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </main>
   );
 }

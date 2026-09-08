@@ -5,8 +5,8 @@ import { Navbar } from '@/components/Navbar';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Horse Farm Manager',
-  description: 'Manage your horses with ease',
+  title: 'Reinwell | Stable Management',
+  description: 'A considered home for every horse in your care.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <Navbar />
-        {children}
+        <div className="app-content">{children}</div>
       </body>
     </html>
   );
