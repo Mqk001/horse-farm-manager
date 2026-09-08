@@ -15,10 +15,82 @@ model User {
   role      String   @default("STAFF")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  emailVerifiedAt DateTime?
+  termsAcceptedAt DateTime?
+
+  memberships  FarmMember[]
+  invitations  FarmInvitation[] @relation("InvitationInvitee")
+  sentInvites  FarmInvitation[] @relation("InvitationSender")
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Farm {
+  id          String         @id @default(cuid())
+  name        String
+  code        String         @unique
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  memberships FarmMember[]
+  invitations FarmInvitation[]
+  horses      Horse[]
+  trainers    Trainer[]
+  settings    Settings?
+}
+
+model FarmMember {
+  id        String   @id @default(cuid())
+  farmId    String
+  userId    String
+  role      String   @default("STAFF") // SUPER_ADMIN, MANAGER, or STAFF
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, or REMOVED
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+  @@index([userId])
+}
+
+model FarmInvitation {
+  id          String    @id @default(cuid())
+  farmId      String
+  email       String
+  token       String    @unique
+  role        String    @default("STAFF")
+  invitedById String
+  inviteeId   String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  farm      Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  invitedBy User @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitee   User? @relation("InvitationInvitee", fields: [inviteeId], references: [id], onDelete: SetNull)
+
+  @@index([farmId, email])
+  @@index([inviteeId])
 }
 
 model Horse {
   id                String    @id @default(cuid())
+  farmId            String?
   name              String
   photo             String?
   age               Int?
@@ -36,10 +108,13 @@ model Horse {
   washes            WashLog[]
   vetItems          VetItem[]
   alerts            Alert[]
+  farm              Farm?     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  @@index([farmId])
 }
 
 model Trainer {
   id        String    @id @default(cuid())
+  farmId    String?
   name      String
   email     String?
   phone     String?
@@ -47,6 +122,8 @@ model Trainer {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   rides     RideLog[]
+  farm      Farm?     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  @@index([farmId])
 }
 
 model RideLog {
@@ -103,9 +180,11 @@ model Alert {
 
 model Settings {
   id                      String   @id @default("global")
+  farmId                  String?  @unique
   defaultRideIntervalDays Int      @default(3)
   defaultWashIntervalDays Int      @default(14)
   vetAlertLeadTimeDays    Int      @default(7)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  farm                    Farm?    @relation(fields: [farmId], references: [id], onDelete: Cascade)
 }

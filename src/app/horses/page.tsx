@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
 import Link from 'next/link';
 import { ArrowUpRight, Clock3, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,7 +18,9 @@ function lastActivity(days: number | null) {
 }
 
 export default async function HorsesPage({ searchParams }: { searchParams: { q?: string; status?: string; overdue?: string } }) {
-  const horses = await prisma.horse.findMany({ orderBy: { name: 'asc' }, include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } } });
+  const user = await getCurrentUser(); if (!user) redirect('/login');
+  const membership = await prisma.farmMember.findFirst({ where: { userId: user.id, status: 'ACTIVE' } }); if (!membership) redirect('/onboarding');
+  const horses = await prisma.horse.findMany({ where: { farmId: membership.farmId }, orderBy: { name: 'asc' }, include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } } });
   const attention = horses.filter((horse) => {
     const ride = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime) : null;
     const groom = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime) : null;

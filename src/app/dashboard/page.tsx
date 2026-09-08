@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
 import { AlertCircle, ArrowUpRight, CalendarDays, CheckCircle2, Clock3, ShieldCheck, Sparkles } from 'lucide-react';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +25,10 @@ function timeAgo(date: Date) {
 }
 
 export default async function Dashboard() {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+  const membership = await prisma.farmMember.findFirst({ where: { userId: user.id, status: 'ACTIVE' } });
+  if (!membership) redirect('/onboarding');
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
   const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
@@ -30,14 +36,14 @@ export default async function Dashboard() {
 
   const [horses, ridesThisWeek, recentRides, recentWashes, careItems] = await Promise.all([
     prisma.horse.findMany({
-      where: { status: { not: 'RETIRED' } },
+      where: { farmId: membership.farmId, status: { not: 'RETIRED' } },
       orderBy: { name: 'asc' },
       include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } },
     }),
-    prisma.rideLog.count({ where: { dateTime: { gte: weekAgo } } }),
-    prisma.rideLog.findMany({ orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
-    prisma.washLog.findMany({ orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
-    prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek } }, include: { horse: true }, orderBy: { nextDueDate: 'asc' } }),
+    prisma.rideLog.count({ where: { dateTime: { gte: weekAgo }, horse: { farmId: membership.farmId } } }),
+    prisma.rideLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
+    prisma.washLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
+    prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek }, horse: { farmId: membership.farmId } }, include: { horse: true }, orderBy: { nextDueDate: 'asc' } }),
   ]);
 
   const overdueHorses = horses.filter((horse) => {
