@@ -26,7 +26,9 @@ export async function POST(request: Request) {
   const user = await prisma.user.create({ data: { name, email, password: await bcrypt.hash(password, 12), role: 'STAFF', termsAcceptedAt: new Date() } });
   const token = randomBytes(32).toString('hex');
   await prisma.emailVerificationToken.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24) } });
-  const verificationUrl = `${new URL(request.url).origin}/verify-email?token=${token}`;
+  // Keep the token out of proxy and preview-protection requests. The client
+  // reads the fragment and sends it to the verification endpoint directly.
+  const verificationUrl = `${new URL(request.url).origin}/verify-email#token=${encodeURIComponent(token)}`;
   if (process.env.NODE_ENV === 'production') {
     try {
       await sendVerificationEmail({ to: email, name, verificationUrl });
