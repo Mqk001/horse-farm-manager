@@ -1,3 +1,4 @@
+import { requireFarm } from '@/lib/farm-access';
 import Link from 'next/link';
 import { CareDialog } from '@/components/CareDialog';
 import { prisma } from '@/lib/prisma';
@@ -13,9 +14,10 @@ function inputDate(date: Date) { return `${date.getFullYear()}-${String(date.get
 function displayDate(date: Date) { return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
 async function getCareData(horseId?: string) {
+  const { farmId } = await requireFarm();
   return Promise.all([
-    prisma.horse.findMany({ where: { status: { not: 'RETIRED' } }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.vetItem.findMany({ where: horseId ? { horseId } : undefined, include: { horse: { select: { id: true, name: true } } }, orderBy: [{ nextDueDate: 'asc' }, { itemName: 'asc' }] }),
+    prisma.horse.findMany({ where: { farmId, status: { not: 'RETIRED' } }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.vetItem.findMany({ where: { horse: { farmId }, ...(horseId ? { horseId } : {}) }, include: { horse: { select: { id: true, name: true } } }, orderBy: [{ nextDueDate: 'asc' }, { itemName: 'asc' }] }),
   ]).then(([horses, items]) => ({ horses, items }));
 }
 

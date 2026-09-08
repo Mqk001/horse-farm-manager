@@ -12,6 +12,7 @@ const signupSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV === 'production') return NextResponse.json({ error: 'Signup is unavailable until email delivery is configured.' }, { status: 503 });
   try {
     const parsed = signupSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check your details.' }, { status: 400 });

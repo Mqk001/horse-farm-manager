@@ -1,12 +1,16 @@
+import { verifySession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const isPublic = ['/login', '/signup', '/verify-email', '/terms', '/privacy'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
-  if (!isPublic && !request.cookies.has('reinwell_session')) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    const origin = request.headers.get('origin');
+    if (origin && new URL(origin).host !== request.headers.get('host')) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   }
-  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup' || request.nextUrl.pathname === '/verify-email') && request.cookies.has('reinwell_session')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  const valid = await verifySession(request.cookies.get('reinwell_session')?.value);
+  if (!isPublic && !valid) {
+    if (request.nextUrl.pathname.startsWith('/api/')) return NextResponse.json({ error: 'Sign in required.' }, { status: 401 });
+    return NextResponse.redirect(new URL('/login', request.url));
   }
   return NextResponse.next();
 }

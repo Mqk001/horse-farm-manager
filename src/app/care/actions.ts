@@ -1,5 +1,6 @@
 'use server';
 
+import { requireFarm } from '@/lib/farm-access';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
@@ -47,6 +48,8 @@ export async function createCareItem(formData: FormData) {
     notes: formData.get('notes') ?? '',
   });
 
+  const { farmId } = await requireFarm();
+  if (!await prisma.horse.findFirst({ where: { id: parsed.horseId, farmId } })) throw new Error('Horse not found');
   await prisma.vetItem.create({
     data: {
       horseId: parsed.horseId,
@@ -63,8 +66,9 @@ export async function createCareItem(formData: FormData) {
 }
 
 export async function completeCareItem(formData: FormData) {
+  const { farmId } = await requireFarm();
   const id = z.string().min(1).parse(formData.get('id'));
-  const item = await prisma.vetItem.findUnique({ where: { id } });
+  const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
   if (!item) throw new Error('Care item not found');
 
   const completedAt = new Date();
@@ -82,12 +86,12 @@ export async function completeCareItem(formData: FormData) {
 }
 
 export async function rescheduleCareItem(formData: FormData) {
+  const { farmId } = await requireFarm();
   const id = z.string().min(1).parse(formData.get('id'));
   const dueDate = z.string().min(1).parse(formData.get('nextDueDate'));
-  const item = await prisma.vetItem.update({
-    where: { id },
-    data: { nextDueDate: parseDateInput(dueDate) },
-  });
+  const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
+  if (!item) throw new Error('Care item not found');
+  await prisma.vetItem.update({ where: { id }, data: { nextDueDate: parseDateInput(dueDate) } });
 
   refreshCareViews(item.horseId);
 }

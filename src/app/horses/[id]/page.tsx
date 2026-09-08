@@ -1,3 +1,4 @@
+import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
 import Link from 'next/link';
@@ -8,8 +9,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function HorseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
+  const { farmId } = await requireFarm();
   const horse = await prisma.horse.findUnique({
-    where: { id: resolvedParams.id },
+    where: { id: resolvedParams.id, farmId },
     include: {
       rides: { orderBy: { dateTime: 'desc' }, take: 20 },
       washes: { orderBy: { dateTime: 'desc' }, take: 20 },

@@ -20,10 +20,9 @@ export async function POST(request: Request) {
       memberships: { create: { userId: user.id, role: 'MANAGER' } },
       },
     });
-    await tx.horse.updateMany({ where: { farmId: null }, data: { farmId: created.id } });
-    await tx.trainer.updateMany({ where: { farmId: null }, data: { farmId: created.id } });
-    await tx.settings.updateMany({ where: { farmId: null }, data: { farmId: created.id } });
     return created;
   });
-  return NextResponse.json({ farm }, { status: 201 });
+  const response = NextResponse.json({ farm }, { status: 201 });
+  response.cookies.set('reinwell_farm', farm.id, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+  return response;
 }

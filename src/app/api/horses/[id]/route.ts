@@ -1,3 +1,4 @@
+import { getFarmAccess } from '@/lib/farm-access';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
@@ -7,9 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const access = await getFarmAccess();
+    if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
     const { id } = await params;
+    if (!await prisma.horse.findFirst({ where: { id, farmId: access.farmId } })) return NextResponse.json({ error: 'Horse not found' }, { status: 404 });
     const horse = await prisma.horse.findUnique({
-      where: { id },
+      where: { id, farmId: access.farmId },
     });
 
     if (!horse) {
@@ -31,11 +35,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const access = await getFarmAccess();
+    if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
     const { id } = await params;
+    if (!await prisma.horse.findFirst({ where: { id, farmId: access.farmId } })) return NextResponse.json({ error: 'Horse not found' }, { status: 404 });
     const body = await request.json();
 
     const horse = await prisma.horse.update({
-      where: { id },
+      where: { id, farmId: access.farmId },
       data: {
         name: body.name,
         breed: body.breed,
@@ -68,10 +75,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const access = await getFarmAccess();
+    if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
     const { id } = await params;
+    if (!await prisma.horse.findFirst({ where: { id, farmId: access.farmId } })) return NextResponse.json({ error: 'Horse not found' }, { status: 404 });
 
     await prisma.horse.delete({
-      where: { id },
+      where: { id, farmId: access.farmId },
     });
 
     // Force refresh

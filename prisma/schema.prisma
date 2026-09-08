@@ -17,11 +17,20 @@ model User {
   updatedAt DateTime @updatedAt
   emailVerifiedAt DateTime?
   termsAcceptedAt DateTime?
+  sessionVersion  Int      @default(0)
 
   memberships  FarmMember[]
   invitations  FarmInvitation[] @relation("InvitationInvitee")
   sentInvites  FarmInvitation[] @relation("InvitationSender")
   emailVerificationTokens EmailVerificationToken[]
+}
+
+model LoginRateLimit {
+  key           String   @id
+  attempts      Int      @default(0)
+  windowStartedAt DateTime
+  lockedUntil   DateTime?
+  updatedAt     DateTime @updatedAt
 }
 
 model EmailVerificationToken {

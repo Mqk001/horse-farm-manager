@@ -1,3 +1,4 @@
+import { requireFarm } from '@/lib/farm-access';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
@@ -25,10 +26,7 @@ function timeAgo(date: Date) {
 }
 
 export default async function Dashboard() {
-  const user = await getCurrentUser();
-  if (!user) redirect('/login');
-  const membership = await prisma.farmMember.findFirst({ where: { userId: user.id, status: 'ACTIVE' } });
-  if (!membership) redirect('/onboarding');
+  const { membership } = await requireFarm();
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
   const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
