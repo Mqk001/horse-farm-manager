@@ -1,4 +1,4 @@
 @echo off
-cd C:\Users\Hp\horse-farm-manager
+cd /d "%~dp0"
 npm run dev
 pause

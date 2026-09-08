@@ -1,0 +1,11 @@
+{
+  "folders": [
+    {
+      "name": "Reinwell",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "window.title": "${dirty}${activeEditorShort}${separator}Reinwell${separator}${appName}"
+  }
+}
