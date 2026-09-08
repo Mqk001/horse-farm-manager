@@ -18,4 +18,4 @@ Failed login attempts are keyed by a SHA-256 hash of the normalized email and cl
 
 ## Remaining before real users
 
-PostgreSQL migrations and deployment flows remain unverified. Google sign-in, real email delivery, invitations, and granular staff permissions remain unfinished. Cross-farm care creation is guarded and own-farm creation was browser-tested, but direct adversarial care-creation testing remains to be added. Production signup gating has been inspected but not run under a production server.
+The empty connected Supabase PostgreSQL project received the farm/auth schema upgrade and server-only RLS policy on September 8, 2026. The matching RLS SQL is tracked in `supabase/migrations/`. Google sign-in, real email delivery, invitations, and granular staff permissions remain unfinished. Cross-farm care creation is guarded and own-farm creation was browser-tested, but direct adversarial care-creation testing remains to be added. Production signup gating has been inspected but not run under a production server.
