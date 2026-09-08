@@ -2,9 +2,13 @@
 
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 export default function VerifyEmailPage() {
+  return <Suspense fallback={<main className="login-page">Loading verification…</main>}><VerificationContent /></Suspense>;
+}
+
+function VerificationContent() {
   const params = useSearchParams(); const router = useRouter();
   const hasVerified = useRef(false);
   const [message, setMessage] = useState('Verifying your email…');
