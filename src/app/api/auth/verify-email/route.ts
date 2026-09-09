@@ -5,6 +5,9 @@ import { COOKIE_NAME, signSession, SESSION_SECONDS } from '@/lib/auth';
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get('token');
   if (!token) return NextResponse.json({ error: 'Verification link is missing.' }, { status: 400 });
+  // Validate signing configuration before consuming a one-time token. This
+  // prevents a configuration error from verifying the account without a session.
+  await signSession('verification-check', 0);
   const record = await prisma.emailVerificationToken.findUnique({ where: { token } });
   if (!record || record.expiresAt < new Date()) return NextResponse.json({ error: 'This verification link is invalid or expired.' }, { status: 400 });
   const user = await prisma.$transaction(async tx => {
