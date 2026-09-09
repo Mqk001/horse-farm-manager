@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { CalendarDays, ChevronRight, Home, LogOut, Menu, Plus, Settings, Sparkles, X } from 'lucide-react';
+import { CalendarDays, ChevronRight, Home, LogOut, Menu, Plus, Settings, Sparkles, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const navigation = [
   { href: '/dashboard', label: 'Overview', icon: Home },
   { href: '/horses', label: 'Horses', icon: Sparkles },
   { href: '/care', label: 'Care schedule', icon: CalendarDays },
+  { href: '/team', label: 'Team', icon: Users },
 ];
 
 function SidebarContents({ pathname, close, signOut, farmName }: { pathname: string; close: () => void; signOut: () => void; farmName: string }) {
