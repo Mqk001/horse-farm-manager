@@ -15,7 +15,7 @@ export default function LoginPage() {
     event.preventDefault(); setLoading(true); setError('');
     const data = new FormData(event.currentTarget);
     const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: data.get('email'), password: data.get('password') }) });
-    if (!response.ok) { setError((await response.json()).error); setLoading(false); return; }
+    if (!response.ok) { const body = await response.json().catch(() => null); setError(body?.error ?? 'We could not sign you in. Please try again.'); setLoading(false); return; }
     router.push('/dashboard'); router.refresh();
   }
 
