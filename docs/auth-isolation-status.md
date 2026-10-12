@@ -37,3 +37,11 @@ Upgraded Next.js from 14.2.0 to 15.5.26 using the official async request API cod
 Restored Supabase project `bbawjkryrotwrkwkitmh` and verified its current public schema: all 13 Reinwell tables exist, columns match the Prisma schema, foreign-key constraints are present, RLS is enabled on every table, and policies allow only the server role. No production data was inserted or changed. The Vercel project is `reinwell` (`prj_cXzNTAtaplyE8be2OmOBxhm0wHUc`).
 
 Production deployment remains blocked until a disposable PostgreSQL connection is tested end to end, Vercel environment variables are audited, and Resend email delivery is exercised with a controlled test account. Google sign-in remains unimplemented.
+
+## October 12, 2026 demo release attempt
+
+The isolated SQLite farm-isolation, invitation-security, and production-auth suites passed in this pass, as did the Next.js production build. Updated Next.js to 15.5.27 and patched source-map-js; the production dependency audit reports zero vulnerabilities. Local SQLite files were removed from Git tracking and retained locally.
+
+The application source was pushed to GitHub and a production deployment was created for the existing Reinwell Vercel project. A separate randomly generated production AUTH_SECRET was configured, and the existing Resend key was enabled for Production as well as Preview without reading its value.
+
+The public login page rendered in the browser, but live sign-in failed: Prisma timed out fetching a PostgreSQL connection. Supabase management SQL independently failed with password authentication for postgres despite the project reporting ACTIVE_HEALTHY. Hosted persistence, current schema/RLS, and live email delivery therefore remain unverified in this pass. The site must not be described as a usable demo until DATABASE_URL is repaired and live save/reload tests pass. No live farm or horse data was changed by this release verification.
