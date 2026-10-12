@@ -18,7 +18,10 @@ function lastActivity(days: number | null) {
   return `${days} days ago`;
 }
 
-export default async function HorsesPage({ searchParams }: { searchParams: { q?: string; status?: string; overdue?: string } }) {
+export default async function HorsesPage(
+  props: { searchParams: Promise<{ q?: string; status?: string; overdue?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const { membership } = await requireFarm();
   const horses = await prisma.horse.findMany({ where: { farmId: membership.farmId }, orderBy: { name: 'asc' }, include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } } });
   const attention = horses.filter((horse) => {

@@ -11,10 +11,10 @@ const suffix=Date.now();
 async function account(n) {
  const email=`test-${suffix}-${n}@example.test`,password='Test-password-123';
  let r=await request('/api/auth/signup','POST',{name:`Test ${n}`,email,password,termsAccepted:true});assert.equal(r.status,201);
- const token=new URL(r.data.verificationUrl).searchParams.get('token');
+ const token=new URLSearchParams(new URL(r.data.verificationUrl).hash.slice(1)).get('token');
  assert.equal((await request('/api/auth/login','POST',{email,password})).status,403);
- r=await request('/api/auth/verify-email?token='+token);assert.equal(r.status,200);const session=r.cookie;
- assert.equal((await request('/api/auth/verify-email?token='+token)).status,400);
+ r=await request('/api/auth/verify-email','POST',{token});assert.equal(r.status,200);const session=r.cookie;
+ assert.equal((await request('/api/auth/verify-email','POST',{token})).status,400);
  r=await request('/api/farms','POST',{name:`Farm ${n}`},session);assert.equal(r.status,201);
  const cookie=session+'; '+r.cookie;
  r=await request('/api/horses','POST',{name:`Horse ${n}`},cookie);assert.equal(r.status,200);assert.ok(r.data.farmId);
@@ -58,6 +58,22 @@ for(const form of careForms) {
  // Reset the fixture between the two independent action checks.
  await db.vetItem.update({where:{id:item.id},data:{lastDoneDate:null,nextDueDate:new Date('2026-10-01')}});
 }
+// The dialog's action is serialized into the page even while the modal is closed.
+// Derive its ID from the compiled action export; never hardcode a build-specific ID.
+const { readFile } = await import('node:fs/promises');
+const manifest = JSON.parse(await readFile(new URL('../.next/server/server-reference-manifest.json', import.meta.url), 'utf8'));
+const createAction = Object.entries(manifest.node).find(([, action]) => action.exportedName === 'createCareItem' && action.filename === 'app/care/actions.ts')?.[0];
+assert.ok(createAction, 'Find the compiled createCareItem server action');
+for (const [horseId, expected] of [[b.id, 500], [legacy.id, 500], [a.id, 200]]) {
+ const fd = new FormData();
+ fd.set('$ACTION_ID_' + createAction, '');
+ for (const [key, value] of Object.entries({horseId, itemType:'OTHER', itemName:'Creation boundary test', nextDueDate:'2026-11-01'})) fd.set(key, value);
+ const before = await db.vetItem.count({where:{horseId}});
+ const response = await fetch(base+'/care', {method:'POST', headers:{cookie:a.cookie, origin:base}, body:fd});
+ assert.equal(response.status, expected);
+ assert.equal(await db.vetItem.count({where:{horseId}}), before + (expected === 200 ? 1 : 0));
+}
+console.log('PASS: care creation persists for own horse and rejects foreign and unassigned horses');
 await db.$disconnect();
 console.log('PASS: legacy records remain unassigned; cross-farm care complete/reschedule denied; own-farm care actions succeed');
 
@@ -80,8 +96,8 @@ console.log('PASS: farm switch is membership-scoped and removal blocks a stale s
 async function verifiedUser(n) {
  const email=`test-${suffix}-${n}@example.test`, password='Test-password-123';
  let r=await request('/api/auth/signup','POST',{name:`Test ${n}`,email,password,termsAccepted:true}); assert.equal(r.status,201);
- const token=new URL(r.data.verificationUrl).searchParams.get('token');
- r=await request('/api/auth/verify-email?token='+token); assert.equal(r.status,200);
+ const token=new URLSearchParams(new URL(r.data.verificationUrl).hash.slice(1)).get('token');
+ r=await request('/api/auth/verify-email','POST',{token}); assert.equal(r.status,200);
  return {email,password};
 }
 const rateReset = await verifiedUser('rate-reset');

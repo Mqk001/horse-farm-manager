@@ -4,3 +4,9 @@ node_modules
 .env.local
 .DS_Store
 *.tsbuildinfo
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.vercel
+.env.*.local

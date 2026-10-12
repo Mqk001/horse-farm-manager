@@ -41,5 +41,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'We could not send the verification email. Please try again.' }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...(process.env.NODE_ENV !== 'production' ? { verificationUrl } : {}) });
 }

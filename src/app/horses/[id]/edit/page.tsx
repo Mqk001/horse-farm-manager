@@ -3,7 +3,8 @@ import { HorseForm } from '@/components/HorseForm';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 export const dynamic = 'force-dynamic';
-export default async function EditHorsePage({ params }: { params: { id: string } }) {
+export default async function EditHorsePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { farmId } = await requireFarm();
   const horse = await prisma.horse.findUnique({ where: { id: params.id, farmId } });
   if (!horse) notFound();

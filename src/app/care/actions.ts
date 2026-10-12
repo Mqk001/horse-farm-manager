@@ -73,7 +73,7 @@ export async function completeCareItem(formData: FormData) {
 
   const completedAt = new Date();
   await prisma.vetItem.update({
-    where: { id },
+    where: { id, horse: { farmId } },
     data: {
       lastDoneDate: completedAt,
       nextDueDate: item.intervalDays
@@ -91,7 +91,7 @@ export async function rescheduleCareItem(formData: FormData) {
   const dueDate = z.string().min(1).parse(formData.get('nextDueDate'));
   const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
   if (!item) throw new Error('Care item not found');
-  await prisma.vetItem.update({ where: { id }, data: { nextDueDate: parseDateInput(dueDate) } });
+  await prisma.vetItem.update({ where: { id, horse: { farmId } }, data: { nextDueDate: parseDateInput(dueDate) } });
 
   refreshCareViews(item.horseId);
 }

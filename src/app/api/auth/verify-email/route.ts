@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { COOKIE_NAME, signSession, SESSION_SECONDS } from '@/lib/auth';
 
-export async function GET(request: Request) {
-  const token = new URL(request.url).searchParams.get('token');
-  if (!token) return NextResponse.json({ error: 'Verification link is missing.' }, { status: 400 });
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  const token = body?.token;
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return NextResponse.json({ error: 'Verification link is missing.' }, { status: 400 });
   // Validate signing configuration before consuming a one-time token. This
   // prevents a configuration error from verifying the account without a session.
   await signSession('verification-check', 0);

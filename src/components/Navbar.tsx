@@ -46,7 +46,7 @@ export function Navbar() {
 
   useEffect(() => { fetch('/api/me').then((response) => response.ok ? response.json() : null).then((data) => setFarmName(data?.farm?.name ?? '')).catch(() => undefined); }, [pathname]);
 
-  if (['/login', '/signup', '/verify-email', '/terms', '/privacy', '/onboarding'].includes(pathname)) return null;
+  if (['/login', '/signup', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding'].includes(pathname)) return null;
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
