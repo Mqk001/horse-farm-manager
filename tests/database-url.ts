@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { databaseUrl } from '../src/lib/database-url';
+
+const host = 'aws-1-us-west-2.pooler.supabase.com';
+const direct = 'postgresql://postgres:fake%40password@db.fixtureproject.supabase.co:5432/postgres';
+const pooled = new URL(databaseUrl(direct, host)!);
+assert.equal(pooled.hostname, host);
+assert.equal(pooled.username, 'postgres.fixtureproject');
+assert.equal(pooled.password, 'fake%40password');
+assert.equal(pooled.port, '6543');
+assert.equal(pooled.pathname, '/postgres');
+assert.equal(pooled.searchParams.get('pgbouncer'), 'true');
+assert.equal(pooled.searchParams.get('sslmode'), 'require');
+assert.equal(pooled.searchParams.get('connection_limit'), '1');
+assert.equal(new URL(databaseUrl(direct + '?connection_limit=3', host)!).searchParams.get('connection_limit'), '3');
+assert.equal(databaseUrl('file:./dev.db', host), 'file:./dev.db');
+assert.equal(databaseUrl(direct, undefined), direct);
+assert.equal(databaseUrl(pooled.toString(), host), pooled.toString());
+assert.equal(databaseUrl('postgresql://user:fake@localhost:5432/postgres', host), 'postgresql://user:fake@localhost:5432/postgres');
+assert.throws(() => databaseUrl(direct, 'untrusted.example'));
+console.log('PASS: pooler conversion preserves credentials/database, requires TLS, and leaves local and already-pooled URLs unchanged');
