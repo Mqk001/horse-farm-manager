@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+const base=process.env.TEST_BASE_URL ?? 'http://localhost:3115';
+assert.ok(new URL(base).hostname === 'localhost' || new URL(base).hostname === '127.0.0.1', 'Use a local disposable auth server');
+assert.equal((await (await fetch(base+'/api/auth/google')).json()).enabled,true);
+let r=await fetch(base+'/api/auth/google/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({termsAccepted:false})});assert.equal(r.status,403);
+r=await fetch(base+'/api/auth/google/start',{method:'POST',headers:{'content-type':'application/json',origin:'https://attacker.example'},body:JSON.stringify({termsAccepted:false})});assert.equal(r.status,403);
+r=await fetch(base+'/api/auth/google/start',{method:'POST',headers:{'content-type':'application/json',origin:base},body:JSON.stringify({termsAccepted:false})});assert.equal(r.status,200);const cookie=r.headers.get('set-cookie');assert.ok(cookie.includes('HttpOnly')&&cookie.includes('SameSite=lax'));const data=await r.json();assert.equal(new URL(data.url).origin,'https://accounts.google.com');
+r=await fetch(base+'/api/auth/google/callback?state=forged&code=fake',{redirect:'manual'});assert.equal(r.status,307);assert.ok(r.headers.get('location').endsWith('/login?google=invalid_flow'));assert.ok(!r.headers.get('set-cookie').includes('reinwell_session='));
+r=await fetch(base+'/auth/google/complete',{redirect:'manual'});assert.equal(r.status,307);assert.ok(r.headers.get('location').endsWith('/login'));
+console.log('PASS: origin enforcement, private short-lived flow cookie, invalid callback rejection, and completion-page session protection');

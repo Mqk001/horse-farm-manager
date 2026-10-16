@@ -73,7 +73,7 @@ export function Navbar() {
     setNavigationTarget(href === pathname ? null : { href, label, from: pathname });
   }
 
-  if (['/login', '/signup', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding'].includes(pathname)) return null;
+  if (['/login', '/signup', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding', '/auth/google/complete'].includes(pathname)) return null;
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });

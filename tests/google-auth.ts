@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { PrismaClient } from '@prisma/local-client';
+import { beginGoogleFlow, decodeGoogleFlow, encodeGoogleFlow } from '../src/lib/google-oauth';
+import { GoogleAccountError, resolveGoogleAccount } from '../src/lib/google-account';
+
+assert.ok(process.env.DATABASE_URL?.startsWith('file:/private/tmp/'), 'Use a disposable temporary SQLite database');
+assert.ok(process.env.AUTH_SECRET?.startsWith('reinwell-google-test-'), 'Use a disposable auth secret');
+const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
+async function main() {
+  const started = await beginGoogleFlow(true);
+  const authUrl = new URL(started.url);
+  assert.equal(authUrl.origin, 'https://accounts.google.com');
+  assert.equal(authUrl.searchParams.get('code_challenge_method'), 'S256');
+  assert.equal(authUrl.searchParams.get('scope'), 'openid email profile');
+  assert.ok(!authUrl.searchParams.has('client_secret'));
+  assert.ok(!authUrl.searchParams.has('code_verifier'));
+  const state = authUrl.searchParams.get('state');
+  const origin = process.env.GOOGLE_AUTH_ORIGIN!;
+  const flow = decodeGoogleFlow(started.cookie, state, origin)!;
+  assert.ok(flow && flow.termsAccepted);
+  assert.equal(authUrl.searchParams.get('nonce'), flow.nonce);
+  for (const invalid of [undefined, started.cookie + 'x', 'forged.cookie']) assert.equal(decodeGoogleFlow(invalid, state, origin), null);
+  assert.equal(decodeGoogleFlow(started.cookie, 'wrong-state', origin), null);
+  assert.equal(decodeGoogleFlow(started.cookie, state, 'https://attacker.example'), null);
+  assert.equal(decodeGoogleFlow(encodeGoogleFlow({ ...flow, expiresAt: Date.now() - 1 }), state, origin), null);
+  console.log('PASS: OAuth state tampering, expiry and origin binding; PKCE, nonce and minimal scopes');
+  const unique = `${Date.now()}`;
+  const identity = (n: string) => ({ subject: `${unique}-${n}`, email: `google-${unique}-${n}@gmail.com`, name: 'Test Google User', authoritativeEmail: true });
+  await assert.rejects(resolveGoogleAccount(identity('terms'), false), (e: unknown) => e instanceof GoogleAccountError && e.code === 'terms_required');
+  const fresh = await resolveGoogleAccount(identity('new'), true);
+  assert.ok(fresh.emailVerifiedAt && fresh.termsAcceptedAt);
+  assert.equal(await db.farmMember.count({ where: { userId: fresh.id } }), 0);
+  assert.equal((await resolveGoogleAccount(identity('new'), false)).id, fresh.id);
+  // Subject stays the identity even if Google later changes its account email.
+  assert.equal((await resolveGoogleAccount({ ...identity('new'), email: 'changed@gmail.com' }, false)).id, fresh.id);
+  const existingIdentity = identity('existing');
+  const existing = await db.user.create({ data: { email: existingIdentity.email, password: 'fixture-only', emailVerifiedAt: new Date() } });
+  const farm = await db.farm.create({ data: { name: 'Existing farm fixture', code: unique, memberships: { create: { userId: existing.id, role: 'MANAGER' } } } });
+  const linked = await resolveGoogleAccount(existingIdentity, false);
+  assert.equal(linked.id, existing.id);
+  assert.equal((await db.farmMember.findUnique({ where: { farmId_userId: { farmId: farm.id, userId: existing.id } } }))?.role, 'MANAGER');
+  assert.equal((await db.user.findUnique({ where: { id: existing.id } }))?.password, 'fixture-only');
+  const unverifiedIdentity = identity('unverified');
+  const unverified = await db.user.create({ data: { email: unverifiedIdentity.email, password: 'pre-registered-password' } });
+  await assert.rejects(resolveGoogleAccount(unverifiedIdentity, true), (e: unknown) => e instanceof GoogleAccountError && e.code === 'verify_first');
+  assert.equal((await db.user.findUnique({ where: { id: unverified.id } }))?.emailVerifiedAt, null);
+  await assert.rejects(resolveGoogleAccount({ ...identity('external'), email: 'third-party@example.test', authoritativeEmail: false }, true), (e: unknown) => e instanceof GoogleAccountError && e.code === 'use_password');
+  await assert.rejects(resolveGoogleAccount({ ...existingIdentity, subject: 'different-google-user' }, true), (e: unknown) => e instanceof GoogleAccountError && e.code === 'account_conflict');
+  console.log('PASS: new-account terms, stable Google subject, existing account/farm/password preservation, unverified-account pre-hijack protection and external-email/conflicting-link rejection');
+}
+main().finally(async () => { await db.$disconnect(); }).catch(error => { console.error(error); process.exitCode = 1; });
