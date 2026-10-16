@@ -1,5 +1,6 @@
 'use server';
 
+import { canManageFarm } from '@/lib/permissions';
 import { requireFarm } from '@/lib/farm-access';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -48,7 +49,8 @@ export async function createCareItem(formData: FormData) {
     notes: formData.get('notes') ?? '',
   });
 
-  const { farmId } = await requireFarm();
+  const { farmId, membership } = await requireFarm();
+  if (!canManageFarm(membership.role)) throw new Error('Only farm managers can schedule or reschedule care.');
   if (!await prisma.horse.findFirst({ where: { id: parsed.horseId, farmId } })) throw new Error('Horse not found');
   await prisma.vetItem.create({
     data: {
@@ -86,7 +88,8 @@ export async function completeCareItem(formData: FormData) {
 }
 
 export async function rescheduleCareItem(formData: FormData) {
-  const { farmId } = await requireFarm();
+  const { farmId, membership } = await requireFarm();
+  if (!canManageFarm(membership.role)) throw new Error('Only farm managers can schedule or reschedule care.');
   const id = z.string().min(1).parse(formData.get('id'));
   const dueDate = z.string().min(1).parse(formData.get('nextDueDate'));
   const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });

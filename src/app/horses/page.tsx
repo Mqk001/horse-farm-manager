@@ -1,3 +1,4 @@
+import { canManageFarm } from '@/lib/permissions';
 import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
@@ -63,7 +64,7 @@ export default async function HorsesPage(
         <div className="premium-card flex min-h-96 flex-col items-center justify-center rounded-3xl px-6 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e4ece5] text-[#315c47]"><Sparkles className="h-7 w-7" /></div>
           <h2 className="mt-6 font-display text-3xl">Begin your stable</h2><p className="mt-2 max-w-sm text-sm leading-6 text-[#778078]">Create the first horse profile to start tracking activity and care.</p>
-          <Link href="/horses/new" className="button-primary mt-6">Add your first horse</Link>
+          {canManageFarm(membership.role) ? <Link href="/horses/new" className="button-primary mt-6">Add your first horse</Link> : <p className="mt-6 text-sm text-[#778078]">Your manager can add the first horse.</p>}
         </div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">

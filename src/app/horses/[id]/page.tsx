@@ -1,3 +1,4 @@
+import { canManageFarm } from '@/lib/permissions';
 import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince } from '@/lib/utils';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function HorseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
-  const { farmId } = await requireFarm();
+  const { farmId, membership } = await requireFarm();
   const horse = await prisma.horse.findUnique({
     where: { id: resolvedParams.id, farmId },
     include: {
@@ -49,6 +50,7 @@ export default async function HorseDetailPage({ params }: { params: Promise<{ id
 
   return (
     <HorseDetailClient
+      canManage={canManageFarm(membership.role)}
       horse={JSON.parse(JSON.stringify(horse))}
       daysSinceRide={daysSinceRide}
       daysSinceWash={daysSinceWash}

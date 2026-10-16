@@ -7,5 +7,5 @@ export async function GET() {
  if (!user) return NextResponse.json({ user: null }, { status: 401 });
  const memberships = await prisma.farmMember.findMany({ where: { userId: user.id, status: 'ACTIVE' }, include: { farm: { select: { id: true, name: true } } } });
  const access = await getFarmAccess();
- return NextResponse.json({ user: { name: user.name, email: user.email }, farm: 'error' in access ? null : { id: access.farmId, name: access.membership.farm.name }, farms: memberships.map(m => ({ ...m.farm, role: m.role })) });
+ return NextResponse.json({ user: { name: user.name, email: user.email }, farm: 'error' in access ? null : { id: access.farmId, name: access.membership.farm.name, role: access.membership.role }, farms: memberships.map(m => ({ ...m.farm, role: m.role })) });
 }
