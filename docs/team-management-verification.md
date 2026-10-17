@@ -78,3 +78,26 @@ Owner's Branding screenshots show App name, support email, authorized domain
 and developer contact already present. Homepage/privacy/terms URLs are blank.
 Owner was instructed to enter the three existing public getreinwell.com URLs,
 save, and return to Audience to publish. No logo or credentials were requested.
+
+## Production result
+
+Code commit ace0e7f67f4f6a3603ac1d01720d9e7e6772b0f1 deployed as
+ dpl_3fPZEFKfTA3pdW5ZBftrZAFA5TpK, READY, assigned to getreinwell.com.
+Live authenticated Team HTTP confirmed new controls, the protected self row,
+and the invited member. Live rejection checks confirmed 401 for anonymous,
+403 for foreign Origin and 404 for an unknown member. Google remains enabled.
+
+Automatic approval review rejected creation of an additional production user
+and membership for mutation testing. That fixture was not created. Successful
+role/removal mutations were tested locally; live checks were read-only or
+expected denials, without changing the owner's access for testing.
+
+After the owner confirmed the Google invitation, the authorized temporary farm
+and its disposable inviter were deleted with exact fixture IDs and a no-horses
+guard. Both deletion counts were one. The owner's real user and real farms were
+not deleted; only membership in the temporary farm was removed by its cascade.
+No production test account/farm from this flow remains.
+
+The owner reports completing the Branding/save/publish instructions. Explicit
+confirmation that Audience now displays In production was requested; pending
+that confirmation, do not describe public publishing as independently verified.
