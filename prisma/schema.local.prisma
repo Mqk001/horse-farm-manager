@@ -216,6 +216,7 @@ model Settings {
 }
 
 model CareCompletion {
+  dismissedAt DateTime?
   id              String   @id @default(cuid())
   horseId         String
   horse           Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
@@ -245,6 +246,7 @@ model PasswordResetToken {
 }
 
 model FarmTask {
+  dismissedAt DateTime?
   id String @id @default(cuid())
   farmId String
   title String

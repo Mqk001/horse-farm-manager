@@ -27,8 +27,8 @@ export function MemberControls({ memberId, name, role }: { memberId: string; nam
     finally { setPending(false); }
   }
   return <div className="reinwell-form w-full sm:max-w-md">
-    <fieldset disabled={pending} className="flex flex-wrap items-end gap-2">
-      <label className="min-w-32 flex-1">Role for {name}<select value={selected} onChange={event => { setSelected(event.target.value); setConfirm(null); setError(''); setMessage(''); }}><option value="STAFF">Staff</option><option value="MANAGER">Manager</option></select></label>
+    <fieldset disabled={pending} className="grid grid-cols-2 items-end gap-2 min-[1500px]:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <label className="col-span-2 min-w-0 min-[1500px]:col-span-1">Role for {name}<select value={selected} onChange={event => { setSelected(event.target.value); setConfirm(null); setError(''); setMessage(''); }}><option value="STAFF">Staff</option><option value="MANAGER">Manager</option></select></label>
       <button type="button" className="button-secondary" disabled={selected === role} onClick={() => { setConfirm('role'); setError(''); }}>Save role</button>
       <button type="button" className="button-secondary text-[#883923]" onClick={() => { setConfirm('remove'); setError(''); }}>Remove</button>
     </fieldset>

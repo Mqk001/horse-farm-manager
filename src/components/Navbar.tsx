@@ -46,6 +46,7 @@ export function Navbar() {
   const [farmName, setFarmName] = useState('');
   const [canManage, setCanManage] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<{ href: string; label: string; from: string } | null>(null);
+  const [visibleTarget, setVisibleTarget] = useState<typeof navigationTarget>(null);
   const [slowTarget, setSlowTarget] = useState<typeof navigationTarget>(null);
   const pending = navigationTarget?.from === pathname ? navigationTarget : null;
 
@@ -59,9 +60,11 @@ export function Navbar() {
   }, [pathname]);
 
   useEffect(() => {
+    setVisibleTarget(null);
     if (!pending) return;
+    const show = window.setTimeout(() => setVisibleTarget(pending), 300);
     const timer = window.setTimeout(() => setSlowTarget(pending), 8000);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(show); window.clearTimeout(timer); };
   }, [pending]);
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export function Navbar() {
           </aside>
         </div>
       )}
-      {pending && <div role="status" className="fixed bottom-4 right-4 z-40 max-w-[calc(100%-2rem)] rounded-2xl border border-[#dedbd1] bg-[#fbfaf6] p-4 text-sm text-[#183d2f] shadow-xl">
+      {pending && visibleTarget === pending && <div role="status" className="fixed bottom-4 right-4 z-40 max-w-[calc(100%-2rem)] rounded-2xl border border-[#dedbd1] bg-[#fbfaf6] p-4 text-sm text-[#183d2f] shadow-xl">
         <p className="flex items-center gap-2"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Opening {pending.label}…</p>
         {slowTarget === pending && <p className="mt-2">Taking longer than usual. <a href={pending.href} className="font-semibold underline">Open this page directly</a></p>}
       </div>}

@@ -1,22 +1,21 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Loading() {
   const pathname = usePathname();
+  const [visible, setVisible] = useState(false);
   const [recoveryUrl, setRecoveryUrl] = useState('');
   useEffect(() => {
-    setRecoveryUrl('');
-    const timer = window.setTimeout(() => setRecoveryUrl(window.location.href), 8000);
-    return () => window.clearTimeout(timer);
+    setVisible(false); setRecoveryUrl('');
+    const show = window.setTimeout(() => setVisible(true), 250);
+    const recover = window.setTimeout(() => setRecoveryUrl(window.location.href), 8000);
+    return () => { window.clearTimeout(show); window.clearTimeout(recover); };
   }, [pathname]);
-
   return <main className="page-shell" aria-busy="true">
-    <div className="premium-card rounded-2xl p-6 text-[#526057]">
-      <p role="status" className="flex items-center gap-3"><Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" /> Loading your workspace…</p>
-      {recoveryUrl && <p className="mt-3 text-sm">Taking longer than usual. <a href={recoveryUrl} className="font-semibold text-[#183d2f] underline">Open this page directly</a></p>}
-    </div>
+    <span role="status" className="sr-only">Loading page</span>
+    {visible && <div aria-hidden="true" className="space-y-5 motion-safe:animate-pulse"><div className="h-8 w-48 rounded-xl bg-[#e5e7df]" /><div className="h-4 w-64 max-w-full rounded-lg bg-[#e5e7df]" /><div className="grid gap-5 sm:grid-cols-2"><div className="h-52 rounded-3xl bg-white/60" /><div className="h-52 rounded-3xl bg-white/60" /></div></div>}
+    {recoveryUrl && <p className="mt-5 text-sm text-[#657067]">Taking longer than usual. <a href={recoveryUrl} className="font-semibold underline">Reload this page</a></p>}
   </main>;
 }

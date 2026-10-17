@@ -48,3 +48,19 @@ export async function assignFarmTask(data: FormData) {
   });
   refresh();
 }
+
+export async function dismissCompletedTask(data: FormData) {
+  const { farmId, user } = await requireFarm();
+  const id = z.string().min(1).parse(data.get('id'));
+  const kind = z.enum(['farm', 'care']).parse(data.get('kind'));
+  await prisma.$transaction(async tx => {
+    await tx.farm.update({ where: { id: farmId }, data: { updatedAt: new Date() } });
+    const actor = await tx.farmMember.findUnique({ where: { farmId_userId: { farmId, userId: user.id } } });
+    if (actor?.status !== 'ACTIVE' || !canManageFarm(actor.role)) throw new Error('Only active managers can dismiss completed work.');
+    const result = kind === 'farm'
+      ? await tx.farmTask.updateMany({ where: { id, farmId, completedAt: { not: null }, dismissedAt: null }, data: { dismissedAt: new Date() } })
+      : await tx.careCompletion.updateMany({ where: { id, horse: { farmId }, dismissedAt: null }, data: { dismissedAt: new Date() } });
+    if (result.count !== 1) throw new Error('Completed work unavailable or already dismissed.');
+  });
+  refresh();
+}

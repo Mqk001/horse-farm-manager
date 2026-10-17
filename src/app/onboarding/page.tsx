@@ -32,7 +32,7 @@ export default function OnboardingPage() {
     finally { setLoading(false); }
   }
   return <main className="login-page"><div className="login-mark">R</div><section className="login-card">
-    <div className="login-heading"><p className="eyebrow">Your workspace</p><h1>{farms.length ? 'Choose your farm' : 'Set up your farm'}</h1><p>{farms.length ? 'Open a workspace to manage its horses and care.' : 'Create the farm workspace where your team will manage horses and care.'}</p></div>
+    <div className="login-heading"><p className="eyebrow">Your workspace</p><h1>{fetching ? 'Your workspace' : farms.length ? 'Choose your farm' : 'Set up your farm'}</h1><p>{fetching ? 'Opening your farm workspace…' : farms.length ? 'Open a workspace to manage its horses and care.' : 'Create the farm workspace where your team will manage horses and care.'}</p></div>
     {fetching && <p role="status" className="mt-6 text-center text-sm text-[#657067]">Loading your farms…</p>}
     {farms.length > 0 && <nav aria-label="Your farms" className="mt-7 grid gap-3">
       {farms.map(farm => <button key={farm.id} type="button" disabled={loading} onClick={() => selectFarm(farm.id)} aria-label={`Open ${farm.name}, ${farm.role === 'STAFF' ? 'Staff' : farm.role === 'SUPER_ADMIN' ? 'Owner' : 'Manager'}${farm.id === activeFarmId ? ', current farm' : ''}`} className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition hover:border-[#244b38] hover:bg-[#f0f3ec] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#244b38] disabled:cursor-wait disabled:opacity-60 ${farm.id === activeFarmId ? 'border-[#244b38] bg-[#f0f3ec]' : 'border-[#dce2d9] bg-white'}`}>
