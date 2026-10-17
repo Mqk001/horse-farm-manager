@@ -1,3 +1,17 @@
+import { DependencyCircuit } from './dependency-circuit';
+
+const emailCircuit = new DependencyCircuit({ name: 'Email delivery', timeoutMs: 5000, maxConcurrent: 4, failureThreshold: 3, cooldownMs: 30000 });
+
+async function deliverEmail(init: RequestInit) {
+  return emailCircuit.run(async signal => {
+    const response = await fetch('https://api.resend.com/emails', { ...init, signal });
+    // Delivery only needs status; do not retain an unread provider body/socket.
+    await response.body?.cancel();
+    if (!response.ok) throw new Error(`Email provider rejected delivery (${response.status})`);
+    return response;
+  });
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ?? character);
 }
@@ -7,7 +21,7 @@ export async function sendVerificationEmail({ to, name, verificationUrl }: { to:
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
 
   const safeName = escapeHtml(name);
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await deliverEmail({
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -25,7 +39,7 @@ export async function sendVerificationEmail({ to, name, verificationUrl }: { to:
 export async function sendFarmInvitationEmail({ to, farmName, role, invitationUrl }: { to: string; farmName: string; role: string; invitationUrl: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
-  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({
+  const response = await deliverEmail({ method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({
     from: process.env.EMAIL_FROM ?? 'Reinwell <onboarding@resend.dev>', to: [to], subject: `You are invited to ${farmName} on Reinwell`,
     text: `You have been invited to join ${farmName} as ${role.toLowerCase()}.\n\nAccept invitation: ${invitationUrl}\n\nThis link expires in 7 days.`,
     html: `<p>You have been invited to join <strong>${escapeHtml(farmName)}</strong> as ${escapeHtml(role.toLowerCase())}.</p><p><a href="${escapeHtml(invitationUrl)}">Accept invitation</a></p><p>This link expires in 7 days.</p>`,
@@ -36,7 +50,7 @@ export async function sendFarmInvitationEmail({ to, farmName, role, invitationUr
 export async function sendPasswordResetEmail({ to, name, resetUrl }: { to: string; name: string; resetUrl: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await deliverEmail({
     method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: process.env.EMAIL_FROM ?? 'Reinwell <onboarding@resend.dev>', to: [to], subject: 'Reset your Reinwell password',

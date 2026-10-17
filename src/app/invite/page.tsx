@@ -1,4 +1,5 @@
 'use client';
+import { invalidateWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -20,7 +21,7 @@ export default function InvitePage() {
       const body = await response.json().catch(() => null);
       if (response.status === 401) setNeedsSignIn(true);
       if (!response.ok) throw new Error(body?.error ?? 'We could not accept this invitation.');
-      clearInvitation();
+      clearInvitation(); invalidateWorkspaceSnapshot();
       setMessage('Invitation accepted. Opening your farm…');
       router.replace('/dashboard'); router.refresh();
     }).catch(error => setMessage(error.message));

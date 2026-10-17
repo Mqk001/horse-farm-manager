@@ -1,3 +1,6 @@
+import { HorseSearchFilters } from '@/components/HorseSearchFilters';
+import { SearchHighlight } from '@/components/SearchHighlight';
+import { horseSearchScore } from '@/lib/horse-search';
 import { canManageFarm } from '@/lib/permissions';
 import { singleParams } from '@/lib/input-validation';
 import { requireFarm } from '@/lib/farm-access';
@@ -34,16 +37,18 @@ export default async function HorsesPage(
     return activityOverdue(ride, horse.rideIntervalDays) || activityOverdue(groom, horse.washIntervalDays);
   }).length;
 
-  const query = (searchParams.q ?? '').trim().toLowerCase();
+  const query = (searchParams.q ?? '').trim().slice(0, 100);
+  const scores = new Map(horses.map(horse => [horse.id, horseSearchScore(horse, query)]));
   const filtered = horses.filter(horse => {
     const ride = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime, now) : null;
     const groom = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime, now) : null;
     const overdue = activityOverdue(ride, horse.rideIntervalDays) || activityOverdue(groom, horse.washIntervalDays);
-    return (!query || [horse.name, horse.breed ?? ''].some(value => value.toLowerCase().includes(query)))
+    return scores.get(horse.id) !== null
       && (!searchParams.status || horse.status === searchParams.status)
       && (searchParams.overdue !== 'yes' || overdue);
   });
 
+  if (query && !searchParams.sort) filtered.sort((a, b) => (scores.get(a.id) ?? 0) - (scores.get(b.id) ?? 0) || a.name.localeCompare(b.name));
   if (searchParams.sort === 'name-desc') filtered.reverse();
   if (searchParams.sort === 'recent') filtered.sort((a, b) => (b.rides[0]?.dateTime.getTime() ?? 0) - (a.rides[0]?.dateTime.getTime() ?? 0));
 
@@ -57,15 +62,10 @@ export default async function HorsesPage(
         </div>
       </header>
 
-      <form className="reinwell-form premium-card mb-6 grid gap-4 rounded-2xl p-4 sm:grid-cols-2" action="/horses">
-        <label>Search horses<input type="search" name="q" defaultValue={searchParams.q} placeholder="Name or breed" /></label>
-        <label>Status<select name="status" defaultValue={searchParams.status ?? ''}><option value="">All statuses</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>Care needs<select name="overdue" defaultValue={searchParams.overdue ?? ''}><option value="">All horses</option><option value="yes">Overdue ride or grooming</option></select></label>
-        <label>Sort by<select name="sort" defaultValue={searchParams.sort ?? ''}><option value="">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="recent">Most recent ride</option></select></label>
-        <div className="flex items-end gap-3"><button className="button-primary">Apply filters</button><a className="button-secondary" href="/horses">Clear</a></div>
-      </form>
+      <HorseSearchFilters query={query} status={searchParams.status ?? ''} overdue={searchParams.overdue ?? ''} sort={searchParams.sort ?? ''} scope={`${membership.userId}:${membership.farmId}`} />
       <p role="status" className="mb-5 text-sm text-[#667169]">{filtered.length} of {horses.length} horses</p>
-      {horses.length > 0 && filtered.length === 0 && <div className="premium-card rounded-2xl p-10 text-center"><h2 className="font-display text-2xl">No matching horses</h2><p className="mt-2 text-sm">Try another search or clear your filters.</p></div>}
+      <div id="horse-results">
+      {horses.length > 0 && filtered.length === 0 && <div className="premium-card rounded-2xl p-10 text-center"><h2 className="font-display text-2xl">No matching horses</h2><p className="mt-2 text-sm">Try a shorter name, a breed, or clear the status and care filters.</p></div>}
 
       {horses.length === 0 ? (
         <div className="premium-card flex min-h-96 flex-col items-center justify-center rounded-3xl px-6 text-center">
@@ -83,13 +83,13 @@ export default async function HorsesPage(
             const needsAttention = rideOverdue || groomOverdue;
             const palette = ['bg-[#dce7df] text-[#315c47]', 'bg-[#e9e1d3] text-[#806537]', 'bg-[#dfe6e8] text-[#526975]', 'bg-[#e7dedb] text-[#81594c]'][index % 4];
             return (
-              <Link key={horse.id} href={`/horses/${horse.id}`} className="premium-card group overflow-hidden rounded-3xl transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+              <Link key={horse.id} href={`/horses/${horse.id}`} data-horse-result className="premium-card group overflow-hidden rounded-3xl transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-start justify-between p-6 pb-5">
                   <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-display text-2xl ${palette}`}>{horse.name.charAt(0).toUpperCase()}</div>
                   <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${needsAttention ? 'bg-[#f4e5df] text-[#a24b35]' : 'bg-[#e4ece5] text-[#315c47]'}`}>{needsAttention ? 'Attention' : statusLabels[horse.status] ?? horse.status}</span>
                 </div>
                 <div className="px-6 pb-6">
-                  <div className="flex items-end justify-between gap-4"><div className="min-w-0"><h2 className="truncate font-display text-3xl">{horse.name}</h2><p className="mt-1 truncate text-xs font-medium text-[#7b837c]">{[horse.breed, horse.age !== null ? `${horse.age} years` : null].filter(Boolean).join(' · ') || 'Profile details pending'}</p></div><ArrowUpRight className="h-5 w-5 shrink-0 text-[#b0b5b0] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#315c47]" /></div>
+                  <div className="flex items-end justify-between gap-4"><div className="min-w-0"><h2 className="truncate font-display text-3xl"><SearchHighlight text={horse.name} query={query} /></h2><p className="mt-1 truncate text-xs font-medium text-[#7b837c]"><SearchHighlight text={[horse.breed, horse.age !== null ? `${horse.age} years` : null].filter(Boolean).join(' · ') || 'Profile details pending'} query={query} /></p></div><ArrowUpRight className="h-5 w-5 shrink-0 text-[#b0b5b0] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#315c47]" /></div>
                   <div className="my-5 h-px bg-[#e6e3da]" />
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`rounded-2xl p-3 ${rideOverdue ? 'bg-[#f7ebe6]' : 'bg-white/65'}`}><div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#909690]"><Clock3 className="h-3 w-3" /> Last ride</div><p className={`mt-2 text-xs font-semibold ${rideOverdue ? 'text-[#a24b35]' : 'text-[#3d4b42]'}`}>{lastActivity(rideDays)}</p></div>
@@ -101,6 +101,7 @@ export default async function HorsesPage(
           })}
         </div>
       )}
+      </div>
     </main>
   );
 }

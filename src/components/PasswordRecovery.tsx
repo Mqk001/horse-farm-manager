@@ -1,4 +1,5 @@
 'use client';
+import { invalidateWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
@@ -39,6 +40,7 @@ export function PasswordRecovery({ reset = false }: { reset?: boolean }) {
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) { setError(body?.error ?? 'We could not complete this request. Please try again.'); return; }
+      if (reset) invalidateWorkspaceSnapshot();
       setSuccess(true); setToken('');
     } catch { setError('We could not connect. Please try again.'); }
     finally { setPending(false); }

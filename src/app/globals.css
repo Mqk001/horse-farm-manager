@@ -84,3 +84,25 @@ body {
 body:has(.landing-page, .login-page, .legal-copy) .app-content { padding-left: 0; }
 .login-heading h2 { margin: .75rem 0; color: var(--forest); font-size: 1.1rem; font-weight: 600; }
 .landing-page { background: radial-gradient(ellipse at 90% 30%, #dce5d4 0, transparent 55%), var(--linen); }
+
+/* Keep forms mounted while an optimistic row replaces their visible content,
+   so rejected server actions can restore the original inputs and error message. */
+.optimistic-task-pending > :not(.optimistic-task-feedback) {
+  display: none !important;
+}
+
+/* Reserve the async provider control without recentering the auth form. */
+.google-signin-slot { min-height: 6rem; }
+.workspace-picker { align-items: start; padding-top: 6rem; }
+html { scrollbar-gutter: stable; }
+
+@keyframes page-enter {
+  from { opacity: .92; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.route-enter { animation: page-enter 140ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .route-enter { animation: none; } }
+
+.button-danger { display: inline-flex; align-items: center; justify-content: center; border-radius: .75rem; padding: .7rem 1rem; background: #9a3e2d; color: white; font-size: .875rem; font-weight: 650; }
+.button-danger:hover { background: #7d2d20; }
+button:disabled { cursor: not-allowed; opacity: .6; }

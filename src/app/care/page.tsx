@@ -1,3 +1,4 @@
+import { OptimisticTaskRow, OptimisticTasksProvider } from '@/components/OptimisticTaskRow';
 import { inputDate, displayDate, careStatus } from '@/lib/care-dates';
 import { canManageFarm } from '@/lib/permissions';
 import { singleParams } from '@/lib/input-validation';
@@ -26,15 +27,15 @@ function CareRow({ item, members, canAssign }: { item: CareItem; members: Member
   const due = item.nextDueDate!;
   const overdue = careStatus(due) === 'overdue';
   return (
-    <article className="group grid gap-4 border-b border-[#e8e5dc] px-5 py-5 last:border-0 sm:grid-cols-[3.5rem_1fr_auto] sm:items-center sm:px-7">
+    <OptimisticTaskRow taskKey={`care:${item.id}`} as="article" label={`${item.horse.name} · ${item.itemName}`} className="group grid gap-4 border-b border-[#e8e5dc] px-5 py-5 last:border-0 sm:grid-cols-[3.5rem_1fr_auto] sm:items-center sm:px-7">
       <div className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl ${overdue ? 'bg-[#f4e5df] text-[#a24b35]' : 'bg-[#e4ece5] text-[#315c47]'}`}><span className="text-[9px] font-bold uppercase tracking-wider">{due.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</span><span className="font-display text-xl leading-none">{due.getUTCDate()}</span></div>
       <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-bold text-[#26332a]">{item.itemName}</h3>{overdue && <span className="rounded-full bg-[#f4e5df] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#a24b35]">Overdue</span>}</div><p className="mt-1 text-xs text-[#7b837c]"><Link href={`/horses/${item.horse.id}`} className="font-semibold text-[#52695b] hover:text-[#183d2f]">{item.horse.name}</Link> · {item.itemType.replaceAll('_', ' ').toLowerCase()}{item.intervalDays ? ` · every ${item.intervalDays} days` : ''}</p><p className="mt-1 text-xs text-[#52695b]">{item.assignedMember ? item.assignedMember.status === 'ACTIVE' ? `Assigned to ${item.assignedMember.user.name ?? item.assignedMember.user.email}` : 'Assignment needs review: member inactive' : 'Unassigned'}</p>{item.vetName && <p className="mt-1 text-[11px] text-[#9a9f9a]">With {item.vetName}</p>}</div>
       <div className="flex flex-wrap items-center gap-2">
         {canAssign && <details><summary className="button-secondary cursor-pointer text-xs">Assign</summary><CareTaskForm action={assignCareItem} className="reinwell-form mt-2 flex flex-wrap gap-2"><input type="hidden" name="id" value={item.id} /><select aria-label={`Assign ${item.itemName}`} name="assignedMemberId" defaultValue={item.assignedMemberId ?? ''}><option value="">Unassigned</option>{members.map(member => <option key={member.id} value={member.id}>{member.user.name ?? member.user.email}</option>)}</select><button className="button-primary">Save assignment</button></CareTaskForm></details>}
-        <CareTaskForm action={completeCareItem}><input type="hidden" name="expectedDueDate" value={due.toISOString()} /><input type="hidden" name="id" value={item.id} /><button aria-label={`Complete ${item.itemName}`} className="flex h-9 items-center gap-2 rounded-xl bg-[#183d2f] px-3 text-xs font-bold text-white transition hover:bg-[#0f2d22]"><Check className="h-3.5 w-3.5" /> Complete</button></CareTaskForm>
+        <CareTaskForm action={completeCareItem} optimistic="complete"><input type="hidden" name="expectedDueDate" value={due.toISOString()} /><input type="hidden" name="id" value={item.id} /><button aria-label={`Complete ${item.itemName}`} className="flex h-9 items-center gap-2 rounded-xl bg-[#183d2f] px-3 text-xs font-bold text-white transition hover:bg-[#0f2d22]"><Check className="h-3.5 w-3.5" /> Complete</button></CareTaskForm>
         {canAssign && <details className="relative"><summary className="flex h-9 cursor-pointer list-none items-center rounded-xl border border-[#dcd9d0] bg-white/60 px-3 text-xs font-bold text-[#677168]">Reschedule</summary><CareTaskForm action={rescheduleCareItem} className="absolute right-0 z-20 mt-2 flex w-64 gap-2 rounded-2xl border border-[#dedbd1] bg-[#fbfaf6] p-3 shadow-xl"><input type="hidden" name="id" value={item.id} /><input aria-label={`New date for ${item.itemName}`} type="date" name="nextDueDate" required defaultValue={inputDate(due)} className="min-w-0 flex-1 rounded-lg border border-[#d6d3ca] bg-white px-2 text-xs" /><button className="rounded-lg bg-[#183d2f] px-3 text-xs font-bold text-white">Save</button></CareTaskForm></details>}
       </div>
-    </article>
+    </OptimisticTaskRow>
   );
 }
 
@@ -59,7 +60,7 @@ export default async function CarePage({ searchParams }: { searchParams: Promise
   const selected = horses.find(horse => horse.id === horseId);
 
   return (
-    <main className="page-shell">
+    <OptimisticTasksProvider><main className="page-shell">
       <header className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="eyebrow">Scheduled care</p><h1 className="mt-3 font-display text-4xl sm:text-5xl">Care schedule</h1><p className="mt-3 max-w-xl text-sm leading-6 text-[#68736b]">Track due dates, complete care, and assign tasks. Dates use UTC.</p></div>
         {canAssign && <ScheduleCareDialog horses={horses} members={members} selectedHorseId={selected?.id} />}
@@ -72,6 +73,6 @@ export default async function CarePage({ searchParams }: { searchParams: Promise
 
       {selected && <div className="mb-6 flex items-center justify-between rounded-2xl border border-[#cfd9d0] bg-[#e7eee7] px-5 py-3 text-sm text-[#315c47]"><span>Showing care for <strong>{selected.name}</strong></span><Link href="/care" className="text-xs font-bold">Clear filter</Link></div>}
       <div className="space-y-6"><CareSection title="Overdue" note="Responsibilities that need attention now." items={overdue} members={members} canAssign={canAssign} /><CareSection title="Today" note="The stable’s priorities for today." items={today} members={members} canAssign={canAssign} /><CareSection title="Upcoming" note="Future care in chronological order." items={upcoming} members={members} canAssign={canAssign} /></div>
-    </main>
+    </main></OptimisticTasksProvider>
   );
 }

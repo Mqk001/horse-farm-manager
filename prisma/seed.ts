@@ -4,6 +4,7 @@ import { hashPassword } from '../src/lib/passwords';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.SEED_ALLOW_RESET !== 'true') throw new Error('Seeding deletes existing data. Set SEED_ALLOW_RESET=true only for an intentional disposable/demo database reset.');
   const ownerPassword = process.env.SEED_OWNER_PASSWORD;
   const staffPassword = process.env.SEED_STAFF_PASSWORD;
   if (!ownerPassword || !staffPassword || ownerPassword.length < 12 || staffPassword.length < 12 || ownerPassword === staffPassword) throw new Error('Set distinct SEED_OWNER_PASSWORD and SEED_STAFF_PASSWORD values of at least 12 characters before seeding.');

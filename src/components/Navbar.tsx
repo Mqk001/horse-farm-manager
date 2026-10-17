@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { readWorkspaceSnapshot, invalidateWorkspaceSnapshot, subscribeWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 import { usePathname, useRouter } from 'next/navigation';
 import { CalendarDays, ChevronRight, Home, Loader2, LogOut, Menu, Plus, Building2, Sparkles, Users, X } from 'lucide-react';
 import { canManageFarm } from '@/lib/permissions';
@@ -42,6 +43,7 @@ function SidebarContents({ pathname, close, signOut, farmName, navigate, canMana
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const hidden = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding', '/auth/google/complete'].includes(pathname);
   const [open, setOpen] = useState(false);
   const [farmName, setFarmName] = useState('');
   const [canManage, setCanManage] = useState(false);
@@ -51,13 +53,18 @@ export function Navbar() {
   const pending = navigationTarget?.from === pathname ? navigationTarget : null;
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/me', { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (!controller.signal.aborted) { setFarmName(data?.farm?.name ?? ''); setCanManage(canManageFarm(data?.farm?.role)); } })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [pathname]);
+    if (hidden) { setFarmName(''); setCanManage(false); return; }
+    let stopped = false, latest = 0;
+    const load = () => {
+      const current = ++latest;
+      readWorkspaceSnapshot().then(data => {
+        if (!stopped && current === latest) { setFarmName(data.farm?.name ?? ''); setCanManage(canManageFarm(data.farm?.role)); }
+      }).catch(() => { if (!stopped && current === latest) { setFarmName(''); setCanManage(false); } });
+    };
+    load();
+    const unsubscribe = subscribeWorkspaceSnapshot(load);
+    return () => { stopped = true; unsubscribe(); };
+  }, [pathname, hidden]);
 
   useEffect(() => {
     setVisibleTarget(null);
@@ -76,10 +83,11 @@ export function Navbar() {
     setNavigationTarget(href === pathname ? null : { href, label, from: pathname });
   }
 
-  if (['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding', '/auth/google/complete'].includes(pathname)) return null;
+  if (hidden) return null;
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
+    invalidateWorkspaceSnapshot();
     router.push('/login');
     router.refresh();
   }

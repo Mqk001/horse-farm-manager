@@ -1,5 +1,23 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { OAuth2Client, CodeChallengeMethod, type TokenPayload } from 'google-auth-library';
+import { MemoryCache } from './memory-cache';
+import { DependencyCircuit } from './dependency-circuit';
+
+const googleCertificates = new MemoryCache<Awaited<ReturnType<OAuth2Client['getFederatedSignonCertsAsync']>>>(2);
+
+function certificateTtl(result: Awaited<ReturnType<OAuth2Client['getFederatedSignonCertsAsync']>>) {
+  const control = result.res?.headers.get('cache-control') ?? '';
+  if (/no-store|no-cache/i.test(control)) return 0;
+  const seconds = Number(/(?:^|,)\s*max-age=(\d+)/i.exec(control)?.[1] ?? 0);
+  const age = Number(result.res?.headers.get('age') ?? 0);
+  return Math.max(0, Math.min(3600000, (seconds - (Number.isFinite(age) ? age : 0)) * 1000));
+}
+
+class GoogleTransportError extends Error {
+  constructor() { super('Google sign-in transport is unavailable'); }
+}
+const googleCircuit = new DependencyCircuit({ name: 'Google sign-in', timeoutMs: 5000, maxConcurrent: 4, failureThreshold: 3, cooldownMs: 30000, isFailure: error => error instanceof GoogleTransportError });
+
 
 export const GOOGLE_FLOW_COOKIE = 'reinwell_google_flow';
 const MAX_AGE_SECONDS = 600;
@@ -47,11 +65,25 @@ export async function beginGoogleFlow(termsAccepted: boolean) {
 export async function verifyGoogleCode(code: string, flow: GoogleFlow) {
   const config = googleConfig();
   if (!config) throw new Error('Google sign-in is unavailable');
-  const client = new OAuth2Client(config.clientId, config.clientSecret, config.redirectUri);
-  const { tokens } = await client.getToken({ code, codeVerifier: flow.verifier, redirect_uri: config.redirectUri });
-  if (!tokens.id_token) throw new Error('Missing Google identity');
-  const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: config.clientId });
-  const payload = ticket.getPayload() as (TokenPayload & { nonce?: string }) | undefined;
-  if (!payload || payload.nonce !== flow.nonce || !payload.sub || !payload.email || payload.email_verified !== true) throw new Error('Invalid Google identity');
-  return { subject: payload.sub, email: payload.email.trim().toLowerCase(), name: payload.name?.slice(0, 100) ?? null, authoritativeEmail: payload.email.toLowerCase().endsWith('@gmail.com') || Boolean(payload.hd) };
+  return googleCircuit.run(async signal => {
+    const client = new OAuth2Client({ clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri });
+    // Enforce options at request time: SDK methods otherwise override retry defaults.
+    const originalRequest = client.transporter.request.bind(client.transporter);
+    client.transporter.request = async options => {
+      try { return await originalRequest({ ...options, signal, timeout: 5000, retry: false }); }
+      catch (error) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) throw error;
+        throw new GoogleTransportError();
+      }
+    };
+    const fetchCertificates = client.getFederatedSignonCertsAsync.bind(client);
+    client.getFederatedSignonCertsAsync = () => googleCertificates.read('google:oauth-signing-certificates:v1', fetchCertificates, certificateTtl);
+    const { tokens } = await client.getToken({ code, codeVerifier: flow.verifier, redirect_uri: config.redirectUri });
+    if (!tokens.id_token) throw new Error('Missing Google identity');
+    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: config.clientId });
+    const payload = ticket.getPayload() as (TokenPayload & { nonce?: string }) | undefined;
+    if (!payload || payload.nonce !== flow.nonce || !payload.sub || !payload.email || payload.email_verified !== true) throw new Error('Invalid Google identity');
+    return { subject: payload.sub, email: payload.email.trim().toLowerCase(), name: payload.name?.slice(0, 100) ?? null, authoritativeEmail: payload.email.toLowerCase().endsWith('@gmail.com') || Boolean(payload.hd) };
+  });
 }

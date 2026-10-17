@@ -1,9 +1,10 @@
 'use client';
 
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Clock3, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock3, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { LogRideModal } from '@/components/LogRideModal';
 import { LogGroomingModal } from '@/components/LogGroomingModal';
 import { DeleteHorseModal } from '@/components/DeleteHorseModal';
@@ -22,7 +23,7 @@ export function HorseDetailClient({ horse, daysSinceRide, daysSinceWash, rideOve
   return (
     <main className="page-shell">
       {(notice || search.get("saved")) && <p role="status" className="form-success mb-5">{notice || "Horse profile saved."}</p>}
-      <Link href="/horses" className="mb-7 inline-flex items-center gap-2 text-xs font-bold text-[#667169] hover:text-[#183d2f]"><ArrowLeft className="h-4 w-4" /> Stable directory</Link>
+      <Breadcrumbs items={[{ label: 'Horses', href: '/horses' }, { label: horse.name }]} />
 
       <section className="premium-card relative mb-6 overflow-hidden rounded-[2rem]">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183d2f] via-[#75917c] to-[#b38a4a]" />

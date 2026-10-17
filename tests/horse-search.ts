@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { horseSearchScore, searchTerms, termMatches } from '../src/lib/horse-search';
+assert.equal(horseSearchScore({ name: 'Thunder', breed: 'Thoroughbred' }, 'Thunder'), 0);
+assert.equal(horseSearchScore({ name: 'Thunder Bay', breed: null }, 'thun'), 1);
+assert.equal(horseSearchScore({ name: 'Thunder', breed: null }, 'Thudner'), 4);
+assert.equal(horseSearchScore({ name: 'José', breed: 'Arabian' }, 'jose'), 0);
+assert.notEqual(horseSearchScore({ name: 'Thunder', breed: 'Thoroughbred' }, 'thunder thorough'), null);
+assert.equal(horseSearchScore({ name: 'Bella', breed: 'Quarter Horse' }, 'Thunder'), null);
+assert.equal(termMatches('bay', 'bad'), false, 'Short queries do not fuzzy-match unrelated words');
+assert.equal(searchTerms('x'.repeat(10000))[0].length, 100);
+assert.equal(horseSearchScore({ name: 'Safe', breed: null }, '<script>'), null);
+console.log('PASS: relevance, transposition typos, accents, multiword names/breeds, no unrelated short fuzzy matches, bounded queries and literal malicious text');

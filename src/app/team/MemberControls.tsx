@@ -1,4 +1,5 @@
 'use client';
+import { invalidateWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,6 +22,7 @@ export function MemberControls({ memberId, name, role }: { memberId: string; nam
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) { setError(body?.error ?? 'Could not update farm access. Refresh and try again.'); return; }
+      invalidateWorkspaceSnapshot();
       setMessage(confirm === 'remove' ? 'Farm access removed.' : 'Role updated.');
       setConfirm(null); router.refresh();
     } catch { setError('Could not connect. Please try again.'); }
@@ -34,7 +36,7 @@ export function MemberControls({ memberId, name, role }: { memberId: string; nam
     </fieldset>
     {confirm && <div role="group" aria-label={`Confirm access change for ${name}`} className="mt-3 rounded-xl border border-[#dedbd1] p-3 text-sm">
       <p>{confirm === 'remove' ? `Remove ${name} from this farm? They will lose access immediately and their care assignments will be cleared. Their recorded history will remain.` : selected === 'MANAGER' ? `Make ${name} a manager? They will be able to edit horses, schedule care, invite people, and change other members’ access.` : `Make ${name} staff? They will lose management controls but can still record activity and complete care.`}</p>
-      <div className="mt-3 flex gap-2"><button type="button" className="button-primary" disabled={pending} onClick={save}>{pending ? 'Saving…' : confirm === 'remove' ? 'Confirm removal' : 'Confirm role change'}</button><button type="button" className="button-secondary" disabled={pending} onClick={() => setConfirm(null)}>Cancel</button></div>
+      <div className="mt-3 flex gap-2"><button type="button" className={confirm === 'remove' || selected === 'STAFF' ? 'button-danger' : 'button-primary'} disabled={pending} onClick={save}>{pending ? 'Saving…' : confirm === 'remove' ? `Remove ${name}` : `Make ${name} ${selected === 'MANAGER' ? 'a manager' : 'staff'}`}</button><button type="button" className="button-secondary" disabled={pending} onClick={() => setConfirm(null)}>Cancel</button></div>
     </div>}
     {error && <p role="alert" className="form-error mt-3">{error}</p>}
     {message && <p role="status" className="form-success mt-3">{message}</p>}

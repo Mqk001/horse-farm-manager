@@ -1,3 +1,4 @@
+import { OptimisticTaskRow, OptimisticTasksProvider } from '@/components/OptimisticTaskRow';
 import { completeFarmTask } from '@/app/team/actions';
 import { DashboardActivity } from '@/components/DashboardActivity';
 import { CareTaskForm } from '@/components/CareTaskForm';
@@ -65,7 +66,7 @@ export default async function Dashboard() {
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 6);
 
   return (
-    <main className="page-shell">
+    <OptimisticTasksProvider><main className="page-shell">
       <header className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">{formatDate(now)}</p>
@@ -82,11 +83,11 @@ export default async function Dashboard() {
           <div><h2 className="font-display text-2xl">My tasks</h2><p className="mt-1 text-xs text-[#7b837c]">Your farm tasks and care due in the next 7 days. Dates use UTC.</p></div>
           <Link href="/care?assigned=mine" className="shrink-0 text-xs font-bold text-[#315c47]">View all assigned</Link>
         </div>
-        {farmTasks.map(task => <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 sm:px-7"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 text-xs text-[#657067]">Farm task · {task.dueDate ? `Due ${displayDate(task.dueDate)}` : 'No due date'}</p></div><CareTaskForm action={completeFarmTask}><input type="hidden" name="id" value={task.id} /><button className="button-primary" aria-label={`Complete ${task.title}`}>Complete</button></CareTaskForm></div>)}
-        {myTasks.length ? myTasks.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 last:border-0 sm:px-7">
+        {farmTasks.map(task => <OptimisticTaskRow taskKey={`farm:${task.id}`} key={task.id} label={task.title} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 sm:px-7"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 text-xs text-[#657067]">Farm task · {task.dueDate ? `Due ${displayDate(task.dueDate)}` : 'No due date'}</p></div><CareTaskForm action={completeFarmTask} optimistic="complete"><input type="hidden" name="id" value={task.id} /><button className="button-primary" aria-label={`Complete ${task.title}`}>Complete</button></CareTaskForm></OptimisticTaskRow>)}
+        {myTasks.length ? myTasks.map(item => <OptimisticTaskRow taskKey={`care:${item.id}`} key={item.id} label={`${item.horse.name} · ${item.itemName}`} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 last:border-0 sm:px-7">
           <div><Link href={`/horses/${item.horseId}`} className="text-sm font-bold">{item.horse.name} · {item.itemName}</Link><p className={`mt-1 text-xs ${careStatus(item.nextDueDate!, now) === 'overdue' ? 'text-[#a24b35]' : 'text-[#657067]'}`}>{careStatus(item.nextDueDate!, now) === 'overdue' ? 'Overdue · ' : careStatus(item.nextDueDate!, now) === 'today' ? 'Due today · ' : 'Due '}{displayDate(item.nextDueDate!)}</p></div>
-          <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
-        </div>) : !farmTasks.length ? <p className="px-5 py-8 text-sm text-[#657067]">No care assigned to you is due in the next 7 days. <Link href="/care?assigned=mine" className="font-semibold text-[#315c47]">View all assigned care</Link></p> : null}
+          <CareTaskForm action={completeCareItem} optimistic="complete"><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+        </OptimisticTaskRow>) : !farmTasks.length ? <p className="px-5 py-8 text-sm text-[#657067]">No care assigned to you is due in the next 7 days. <Link href="/care?assigned=mine" className="font-semibold text-[#315c47]">View all assigned care</Link></p> : null}
       </section>
 
       <DashboardActivity horses={horses.map(({ id, name }) => ({ id, name }))} />
@@ -127,11 +128,11 @@ export default async function Dashboard() {
           ) : (
             <div className="divide-y divide-[#ebe8df]">
               {overdueCare.slice(0, 4).map((item) => (
-                <div key={item.id} className="group flex flex-wrap items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
+                <OptimisticTaskRow taskKey={`care:${item.id}`} label={`${item.horse.name} · ${item.itemName}`} key={item.id} className="group flex flex-wrap items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4e5df] text-[#a24b35]"><CalendarDays className="h-[18px] w-[18px]" /></div>
                   <div className="min-w-0 flex-1"><Link href={`/care?horseId=${item.horseId}`} className="text-sm font-bold text-[#26332a]">{item.itemName}</Link><p className="mt-1 text-xs text-[#7b837c]">{item.horse.name} · overdue care</p></div>
-                  <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
-                </div>
+                  <CareTaskForm action={completeCareItem} optimistic="complete"><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+                </OptimisticTaskRow>
               ))}
               {overdueHorses.slice(0, Math.max(0, 5 - Math.min(4, overdueCare.length))).map((horse) => (
                 <Link key={horse.id} href={`/horses/${horse.id}`} className="group flex items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
@@ -152,12 +153,12 @@ export default async function Dashboard() {
           </div>
           <div className="p-3">
             {upcomingCare.length === 0 ? <p className="px-3 py-12 text-center text-sm text-[#7b837c]">No care due in the next 7 days.</p> : upcomingCare.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex flex-wrap items-center gap-4 rounded-2xl px-3 py-3 hover:bg-white">
+              <OptimisticTaskRow taskKey={`care:${item.id}`} label={`${item.horse.name} · ${item.itemName}`} key={item.id} className="flex flex-wrap items-center gap-4 rounded-2xl px-3 py-3 hover:bg-white">
                 <div className="w-11 shrink-0 text-center"><p className="text-[10px] font-bold uppercase tracking-wider text-[#a17c42]">{item.nextDueDate!.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</p><p className="font-display text-2xl leading-none">{item.nextDueDate!.getUTCDate()}</p></div>
                 <div className="h-8 w-px bg-[#e2dfd5]" />
                 <div className="min-w-0 flex-1"><Link href={`/care?horseId=${item.horseId}`} className="text-sm font-bold">{item.itemName}</Link><p className="mt-1 text-xs text-[#7b837c]">{item.horse.name} · {item.itemType.replaceAll('_', ' ')}</p></div>
-                <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
-              </div>
+                <CareTaskForm action={completeCareItem} optimistic="complete"><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+              </OptimisticTaskRow>
             ))}
           </div>
         </section>
@@ -177,6 +178,6 @@ export default async function Dashboard() {
           </div>
         )}
       </section>
-    </main>
+    </main></OptimisticTasksProvider>
   );
 }

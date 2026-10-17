@@ -1,3 +1,4 @@
+import { invalidateTeamRevision } from '@/lib/team-revision';
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -24,6 +25,7 @@ async function change(request: Request, context: Context, remove: boolean) {
   }
   try {
     const member = await changeFarmMember({ farmId: access.farmId, actorId: access.user.id, memberId: (await context.params).id, role });
+    invalidateTeamRevision(access.farmId);
     for (const path of ['/team', '/care', '/dashboard']) revalidatePath(path);
     return NextResponse.json({ member });
   } catch (error) {

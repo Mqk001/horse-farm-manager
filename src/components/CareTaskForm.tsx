@@ -1,28 +1,40 @@
 'use client';
+import { rememberDismissalUndo, dismissalUndoKey, type DismissalUndo } from '@/lib/dismissal-undo';
 import { validateFormData, PayloadError } from '@/lib/request-limits';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 
-export function CareTaskForm({ action, children, className }: { action: (data: FormData) => Promise<void>; children: ReactNode; className?: string }) {
+import { useOptimisticTask, useOptimisticTaskPending, type OptimisticTaskChange } from './OptimisticTaskRow';
+
+export function CareTaskForm({ action, children, className, optimistic, dismissalUndo, clearDismissalUndoScope }: { action: (data: FormData) => Promise<void>; children: ReactNode; className?: string; optimistic?: OptimisticTaskChange; dismissalUndo?: DismissalUndo; clearDismissalUndoScope?: string }) {
+  const pagePending = useOptimisticTaskPending();
+  const task = useOptimisticTask();
+  const inFlight = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
+    if (inFlight.current || pagePending) return;
     const data = new FormData(event.currentTarget);
-    setPending(true); setError('');
     try {
       validateFormData(data);
+      if (optimistic && task && !task.begin(optimistic)) return;
+      inFlight.current = true;
+      setPending(true); setError('');
       await action(data);
+      if (dismissalUndo) rememberDismissalUndo(dismissalUndo);
+      if (clearDismissalUndoScope) { try { sessionStorage.removeItem(dismissalUndoKey(clearDismissalUndoScope)); } catch {} }
       // Retain the current filters while showing the persisted task state.
       window.location.reload();
     } catch (error) {
-      setError(error instanceof PayloadError ? error.message : 'Could not save this task. Refresh and try again.');
+      task?.rollback();
+      inFlight.current = false;
+      setError(error instanceof PayloadError ? error.message : optimistic ? 'Could not confirm this change. Previous view restored. Refresh before trying again.' : 'Could not save this task. Refresh and try again.');
       setPending(false);
     }
   }
-  return <form action={action} onSubmit={submit} className={className}>
-    <fieldset disabled={pending} className="contents">{children}</fieldset>
+  return <form action={action} onSubmit={submit} className={className} data-task-pending={pending ? 'true' : undefined}>
+    <fieldset disabled={pending || pagePending} className="contents">{children}</fieldset>
     {pending && <p role="status" className="text-xs text-[#68736b]">Saving…</p>}
     {error && <p role="alert" className="form-error text-xs">{error}</p>}
   </form>;

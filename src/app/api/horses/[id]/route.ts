@@ -1,3 +1,4 @@
+import { invalidateTeamRevision } from '@/lib/team-revision';
 import { canManageFarm } from '@/lib/permissions';
 import { horseSchema } from '@/lib/input-validation';
 import { getFarmAccess } from '@/lib/farm-access';
@@ -60,6 +61,7 @@ export async function PUT(
       },
     });
 
+    invalidateTeamRevision(access.farmId);
     // Force refresh
     revalidatePath('/horses');
     revalidatePath('/dashboard');
@@ -90,6 +92,7 @@ export async function DELETE(
       where: { id, farmId: access.farmId },
     });
 
+    invalidateTeamRevision(access.farmId);
     // Force refresh
     revalidatePath('/horses');
     revalidatePath('/dashboard');

@@ -1,4 +1,5 @@
 'use server';
+import { invalidateTeamRevision } from '@/lib/team-revision';
 import { validateFormData } from '@/lib/request-limits';
 import { parseCareDate } from '@/lib/care-dates';
 
@@ -27,7 +28,8 @@ function addDays(date: Date, days: number) {
   return nextDate;
 }
 
-function refreshCareViews(horseId: string) {
+function refreshCareViews(horseId: string, farmId: string) {
+  invalidateTeamRevision(farmId);
   revalidatePath('/care');
   revalidatePath('/team');
   revalidatePath('/dashboard');
@@ -69,7 +71,7 @@ export async function createCareItem(formData: FormData) {
     },
   });
 
-  refreshCareViews(parsed.horseId);
+  refreshCareViews(parsed.horseId, farmId);
 }
 
 export async function completeCareItem(formData: FormData) {
@@ -94,7 +96,7 @@ export async function completeCareItem(formData: FormData) {
     }
     await tx.careCompletion.create({ data: { horseId: item.horseId, careItemId: id, completedAt, itemName: item.itemName, itemType: item.itemType, vetName: item.vetName, notes: item.notes, completedByName: user.name ?? user.email } });
   });
-  refreshCareViews(item.horseId);
+  refreshCareViews(item.horseId, farmId);
 }
 
 export async function assignCareItem(formData: FormData) {
@@ -109,7 +111,7 @@ export async function assignCareItem(formData: FormData) {
     if (assignedMemberId && !await tx.farmMember.findFirst({ where: { id: assignedMemberId, farmId, status: 'ACTIVE' } })) throw new Error('Select an active farm member');
     await tx.vetItem.update({ where: { id, horse: { farmId } }, data: { assignedMemberId } });
   });
-  refreshCareViews(item.horseId);
+  refreshCareViews(item.horseId, farmId);
 }
 
 export async function rescheduleCareItem(formData: FormData) {
@@ -122,5 +124,5 @@ export async function rescheduleCareItem(formData: FormData) {
   if (!item) throw new Error('Care item not found');
   await prisma.vetItem.update({ where: { id, horse: { farmId } }, data: { nextDueDate: parseCareDate(dueDate) } });
 
-  refreshCareViews(item.horseId);
+  refreshCareViews(item.horseId, farmId);
 }

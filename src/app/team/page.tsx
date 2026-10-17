@@ -1,7 +1,9 @@
+import { DismissalUndoNotice } from '@/components/DismissalUndoNotice';
+import { OptimisticTaskRow, OptimisticTasksProvider } from '@/components/OptimisticTaskRow';
 import Link from 'next/link';
 import { CareTaskForm } from '@/components/CareTaskForm';
 import { ScheduleCareDialog } from '@/components/ScheduleCareDialog';
-import { createFarmTask, assignFarmTask, completeFarmTask, dismissCompletedTask } from './actions';
+import { createFarmTask, assignFarmTask, completeFarmTask, dismissCompletedTask, restoreDismissedTask } from './actions';
 import { assignCareItem } from '@/app/care/actions';
 import { displayDate, careStatus } from '@/lib/care-dates';
 import { requireFarm } from '@/lib/farm-access';
@@ -23,7 +25,7 @@ async function assignExistingTask(data: FormData) {
 
 export default async function TeamPage() {
   const { membership, farmId } = await requireFarm();
-  if (!['MANAGER', 'SUPER_ADMIN'].includes(membership.role)) return <main className="page-shell"><h1 className="font-display text-4xl">Your team</h1><p className="mt-4">Only farm managers can invite team members.</p></main>;
+  if (!['MANAGER', 'SUPER_ADMIN'].includes(membership.role)) return <OptimisticTasksProvider><main className="page-shell"><h1 className="font-display text-4xl">Your team</h1><p className="mt-4">Only farm managers can invite team members.</p></main></OptimisticTasksProvider>;
 
   const [members, horses, tasks, farmTasks, recentTasks, completedCare, revision] = await Promise.all([
     prisma.farmMember.findMany({
@@ -46,7 +48,7 @@ export default async function TeamPage() {
 
 
   return <>
-    <main className="page-shell">
+    <OptimisticTasksProvider><main className="page-shell">
       <TeamRefresh revision={revision} />
       <header className="mb-5"><p className="eyebrow">Farm workspace</p><h1 className="mt-3 font-display text-4xl">Your team</h1><p className="mt-3 text-sm text-[#657067]">Assign work and see who’s doing what.</p></header>
       <div className="grid items-start gap-5 xl:grid-cols-2">
@@ -79,8 +81,8 @@ export default async function TeamPage() {
           <span className="shrink-0 rounded-full bg-[#f0f3ec] px-3 py-1 text-sm text-[#384b3b]">{member.role === 'SUPER_ADMIN' ? 'Owner' : member.role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
           <details className="w-full rounded-2xl bg-[#f0f3ec] p-3">
             <summary className="cursor-pointer text-sm font-semibold">Assigned work ({(tasksByMember.get(member.id) ?? []).length + farmTasks.filter(task => task.assignedMemberId === member.id).length})</summary>
-            {(tasksByMember.get(member.id) ?? []).length ? <ul className="mt-3 space-y-3">{(tasksByMember.get(member.id) ?? []).map(task => <li key={task.id} className="grid gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div><Link href={`/care?horseId=${task.horseId}`} className="font-medium underline">{task.horse.name} · {task.itemName}</Link><p className={`mt-1 text-xs ${careStatus(task.nextDueDate!) === 'overdue' ? 'text-[#a24b35]' : 'text-[#657067]'}`}>{task.lastDoneDate ? 'Next scheduled · ' : careStatus(task.nextDueDate!) === 'overdue' ? 'Overdue · ' : 'Due '}{displayDate(task.nextDueDate!)}</p></div><CareTaskForm action={assignCareItem}><input type="hidden" name="id" value={task.id} /><input type="hidden" name="assignedMemberId" value="" /><button className="button-secondary text-xs" aria-label={`Unassign ${task.itemName} from ${member.user.name || member.user.email}`}>Unassign</button></CareTaskForm></li>)}</ul> : <p className="mt-2 text-xs text-[#657067]">No horse care assigned.</p>}
-            <ul className="mt-2 space-y-2">{farmTasks.filter(task => task.assignedMemberId === member.id).map(task => <li key={task.id} className="grid gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div><p className="font-medium">{task.title}</p><p className="text-xs text-[#657067]">{task.dueDate ? `Due ${displayDate(task.dueDate)}` : 'No due date'}</p></div><div className="flex flex-wrap gap-2 sm:justify-end"><CareTaskForm action={completeFarmTask}><input type="hidden" name="id" value={task.id} /><button className="button-primary text-xs">Complete</button></CareTaskForm><CareTaskForm action={assignFarmTask}><input type="hidden" name="id" value={task.id} /><input type="hidden" name="assignedMemberId" value="" /><button className="button-secondary text-xs">Unassign</button></CareTaskForm></div></li>)}</ul>
+            {(tasksByMember.get(member.id) ?? []).length ? <ul className="mt-3 space-y-3">{(tasksByMember.get(member.id) ?? []).map(task => <OptimisticTaskRow as="li" taskKey={`care:${task.id}`} key={task.id} label={`${task.horse.name} · ${task.itemName}`} className="grid gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div><Link href={`/care?horseId=${task.horseId}`} className="font-medium underline">{task.horse.name} · {task.itemName}</Link><p className={`mt-1 text-xs ${careStatus(task.nextDueDate!) === 'overdue' ? 'text-[#a24b35]' : 'text-[#657067]'}`}>{task.lastDoneDate ? 'Next scheduled · ' : careStatus(task.nextDueDate!) === 'overdue' ? 'Overdue · ' : 'Due '}{displayDate(task.nextDueDate!)}</p></div><CareTaskForm action={assignCareItem} optimistic="unassign"><input type="hidden" name="id" value={task.id} /><input type="hidden" name="assignedMemberId" value="" /><button className="button-secondary text-xs" aria-label={`Unassign ${task.itemName} from ${member.user.name || member.user.email}`}>Unassign</button></CareTaskForm></OptimisticTaskRow>)}</ul> : <p className="mt-2 text-xs text-[#657067]">No horse care assigned.</p>}
+            <ul className="mt-2 space-y-2">{farmTasks.filter(task => task.assignedMemberId === member.id).map(task => <OptimisticTaskRow as="li" taskKey={`farm:${task.id}`} key={task.id} label={task.title} className="grid gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div><p className="font-medium">{task.title}</p><p className="text-xs text-[#657067]">{task.dueDate ? `Due ${displayDate(task.dueDate)}` : 'No due date'}</p></div><div className="flex flex-wrap gap-2 sm:justify-end"><CareTaskForm action={completeFarmTask} optimistic="complete"><input type="hidden" name="id" value={task.id} /><button className="button-primary text-xs">Complete</button></CareTaskForm><CareTaskForm action={assignFarmTask} optimistic="unassign"><input type="hidden" name="id" value={task.id} /><input type="hidden" name="assignedMemberId" value="" /><button className="button-secondary text-xs">Unassign</button></CareTaskForm></div></OptimisticTaskRow>)}</ul>
           </details>
           {member.userId === membership.userId ? <p className="w-full text-xs text-[#657067]">Your account · ask another manager to change your access.</p> : member.role === 'SUPER_ADMIN' ? <p className="w-full text-xs text-[#657067]">Owner access is protected.</p> : <MemberControls key={`${member.id}-${member.role}`} memberId={member.id} name={member.user.name || member.user.email} role={member.role} />}
         </li>)}
@@ -94,9 +96,10 @@ export default async function TeamPage() {
       {recentTasks.length + completedCare.length === 0 ? <p className="mt-4 text-sm text-[#657067]">No completed work waiting for review.</p> : <ul className="mt-4 divide-y divide-[#e6e8e2]">{[
         ...recentTasks.map(task => ({ id: task.id, kind: 'farm', title: task.title, by: task.completedByName, date: task.completedAt! })),
         ...completedCare.map(task => ({ id: task.id, kind: 'care', title: `${task.horse.name} · ${task.itemName}`, by: task.completedByName, date: task.completedAt })),
-      ].sort((a, b) => b.date.getTime() - a.date.getTime()).map(task => <li key={`${task.kind}-${task.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-semibold">{task.title} <span className="ml-2 rounded-full bg-[#e4ece5] px-2 py-1 text-xs text-[#315c47]">Completed</span></p><p className="mt-1 text-xs text-[#657067]">{task.by || 'Recorded completion'} · {displayDate(task.date)}</p></div><CareTaskForm action={dismissCompletedTask}><input type="hidden" name="id" value={task.id} /><input type="hidden" name="kind" value={task.kind} /><button className="button-secondary" aria-label={`Dismiss ${task.title}`}>Dismiss</button></CareTaskForm></li>)}</ul>}
+      ].sort((a, b) => b.date.getTime() - a.date.getTime()).map(task => <OptimisticTaskRow as="li" taskKey={`review:${task.kind}:${task.id}`} label={task.title} key={`${task.kind}-${task.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-semibold">{task.title} <span className="ml-2 rounded-full bg-[#e4ece5] px-2 py-1 text-xs text-[#315c47]">Completed</span></p><p className="mt-1 text-xs text-[#657067]">{task.by || 'Recorded completion'} · {displayDate(task.date)}</p></div><CareTaskForm action={dismissCompletedTask} optimistic="dismiss" dismissalUndo={{ scope: `${membership.userId}:${membership.farmId}`, id: task.id, kind: task.kind as 'farm' | 'care', title: task.title }}><input type="hidden" name="id" value={task.id} /><input type="hidden" name="kind" value={task.kind} /><button className="button-secondary" aria-label={`Dismiss ${task.title}`}>Dismiss</button></CareTaskForm></OptimisticTaskRow>)}</ul>}
     </section>
     <details className="premium-card mt-5 rounded-2xl p-4"><summary className="cursor-pointer text-sm font-semibold">Invite a teammate</summary><TeamForm /></details>
-    </main>
+      <DismissalUndoNotice scope={`${membership.userId}:${membership.farmId}`} action={restoreDismissedTask} />
+    </main></OptimisticTasksProvider>
   </>;
 }

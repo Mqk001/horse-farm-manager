@@ -1,4 +1,5 @@
 'use client';
+import { invalidateWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 import { GoogleSignIn } from '@/components/GoogleSignIn';
 import { afterSignInPath } from '@/lib/pending-invitation';
 
@@ -20,6 +21,7 @@ export default function LoginPage() {
     try {
     const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: data.get('email'), password: data.get('password') }) });
     if (!response.ok) { const body = await response.json().catch(() => null); setError(body?.error ?? 'We could not sign you in. Please try again.'); setLoading(false); return; }
+    invalidateWorkspaceSnapshot();
     router.push(afterSignInPath()); router.refresh();
     } catch { setError('We could not connect. Please try again.'); } finally { setLoading(false); }
   }

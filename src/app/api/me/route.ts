@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { getFarmAccess } from '@/lib/farm-access';
-import { prisma } from '@/lib/prisma';
+import { getFarmContext } from '@/lib/farm-access';
+
 export async function GET() {
- const user = await getCurrentUser();
- if (!user) return NextResponse.json({ user: null }, { status: 401 });
- const memberships = await prisma.farmMember.findMany({ where: { userId: user.id, status: 'ACTIVE' }, include: { farm: { select: { id: true, name: true } } } });
- const access = await getFarmAccess();
- return NextResponse.json({ user: { name: user.name, email: user.email }, farm: 'error' in access ? null : { id: access.farmId, name: access.membership.farm.name, role: access.membership.role }, farms: memberships.map(m => ({ ...m.farm, role: m.role })) });
+  const context = await getFarmContext();
+  const headers = { 'Cache-Control': 'private, no-store' };
+  if (!context) return NextResponse.json({ user: null }, { status: 401, headers });
+  const { user, memberships, membership } = context;
+  return NextResponse.json({
+    user: { name: user.name, email: user.email },
+    farm: membership ? { id: membership.farmId, name: membership.farm.name, role: membership.role } : null,
+    farms: memberships.map(m => ({ id: m.farm.id, name: m.farm.name, role: m.role })),
+  }, { headers });
 }

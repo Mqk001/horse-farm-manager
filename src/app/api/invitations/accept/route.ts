@@ -1,3 +1,4 @@
+import { invalidateTeamRevision } from '@/lib/team-revision';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
     if (member?.status !== 'ACTIVE') await tx.farmMember.upsert({ where: { farmId_userId: { farmId: invitation.farmId, userId: user.id } }, create: { farmId: invitation.farmId, userId: user.id, role: invitation.role, status: 'ACTIVE' }, update: { role: invitation.role, status: 'ACTIVE' } });
     return { farmId: invitation.farmId };
   });
+  invalidateTeamRevision(result.farmId);
   const response = NextResponse.json({ ok: true, farmId: result.farmId });
   response.cookies.set('reinwell_farm', result.farmId, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
   return response;
