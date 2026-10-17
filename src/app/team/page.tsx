@@ -1,5 +1,6 @@
 import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
+import { MemberControls } from './MemberControls';
 import TeamForm from './TeamForm';
 
 export default async function TeamPage() {
@@ -8,7 +9,7 @@ export default async function TeamPage() {
 
   const members = await prisma.farmMember.findMany({
     where: { farmId, status: 'ACTIVE' },
-    select: { id: true, role: true, user: { select: { name: true, email: true } } },
+    select: { id: true, userId: true, role: true, user: { select: { name: true, email: true } } },
     orderBy: { joinedAt: 'asc' },
   });
 
@@ -24,6 +25,7 @@ export default async function TeamPage() {
         {members.map(member => <li key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-5">
           <div className="min-w-0"><p className="font-medium text-[#17201a]">{member.user.name || member.user.email}</p><p className="break-all text-sm text-[#657067]">{member.user.email}</p></div>
           <span className="rounded-full bg-[#f0f3ec] px-3 py-1 text-sm text-[#384b3b]">{member.role === 'SUPER_ADMIN' ? 'Owner' : member.role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
+          {member.userId === membership.userId ? <p className="w-full text-xs text-[#657067]">Your account · ask another manager to change your access.</p> : member.role === 'SUPER_ADMIN' ? <p className="w-full text-xs text-[#657067]">Owner access is protected.</p> : <MemberControls key={`${member.id}-${member.role}`} memberId={member.id} name={member.user.name || member.user.email} role={member.role} />}
         </li>)}
       </ul>
     </section>

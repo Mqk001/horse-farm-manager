@@ -113,3 +113,11 @@ passed. Local and live browser confirmed terms prompt appears on Google click,
 links are present, checkbox unchecked, final action disabled until acceptance.
 Owner still must perform acceptance and complete Google consent for live
 callback/session verification.
+
+## Live invitation and public-audience check (October 16, 2026)
+
+The owner completed the Google invitation flow into an authorized temporary
+farm. Hosted data confirmed an accepted invitation and ACTIVE STAFF membership.
+Public-audience screenshot confirms External + Testing, with Publish app
+blocked until Branding configuration is completed. Public publishing is still
+pending. See docs/team-management-verification.md for exact scope/evidence.

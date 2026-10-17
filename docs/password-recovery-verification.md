@@ -72,3 +72,9 @@ real data. Run TypeScript suites with `node --import tsx`; the HTTP suite expect
 its local production server on 127.0.0.1:3187 and no RESEND_API_KEY. For the SQL
 suite, set PGLITE_MODULE to a temporary @electric-sql/pglite@0.5.10 installation's
 dist/index.js file URL. PGlite was not added to project dependencies.
+
+## Owner live confirmation
+
+After the production release, the owner confirmed that reset email delivery,
+password change and login with the new password worked. Earlier local-only
+statements above describe the original verification checkpoint.

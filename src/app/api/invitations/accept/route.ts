@@ -17,8 +17,9 @@ export async function POST(request: Request) {
   if (invitation.email !== user.email) return NextResponse.json({ error: 'Sign in with the email address this invitation was sent to.' }, { status: 403 });
   try {
   const result = await prisma.$transaction(async tx => {
-    // Claim before reading: SQLite cannot upgrade concurrent read transactions
-    // to writers. The claim and membership change still commit atomically.
+    // Serialize with team access changes before reading membership state.
+    await tx.farm.update({ where: { id: invitation.farmId }, data: { updatedAt: new Date() } });
+    // Claim and membership change commit atomically.
     const consumed = await tx.farmInvitation.updateMany({ where: { id: invitation.id, acceptedAt: null, declinedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date(), inviteeId: user.id } });
     if (!consumed.count) throw new InvitationError('This invitation is invalid or expired.', 400);
     const inviter = await tx.farmMember.findUnique({ where: { farmId_userId: { farmId: invitation.farmId, userId: invitation.invitedById } } });
