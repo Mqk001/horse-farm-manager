@@ -98,6 +98,7 @@ guard. Both deletion counts were one. The owner's real user and real farms were
 not deleted; only membership in the temporary farm was removed by its cascade.
 No production test account/farm from this flow remains.
 
-The owner reports completing the Branding/save/publish instructions. Explicit
-confirmation that Audience now displays In production was requested; pending
-that confirmation, do not describe public publishing as independently verified.
+The owner's final screenshot of the Reinwell project Audience page confirms
+Publishing status: In production and User type: External. Public publishing is
+complete. Earlier Testing/Branding-blocker notes describe the prior checkpoint;
+there is no remaining public-audience status check from this handoff.

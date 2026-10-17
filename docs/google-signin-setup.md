@@ -118,6 +118,10 @@ callback/session verification.
 
 The owner completed the Google invitation flow into an authorized temporary
 farm. Hosted data confirmed an accepted invitation and ACTIVE STAFF membership.
-Public-audience screenshot confirms External + Testing, with Publish app
-blocked until Branding configuration is completed. Public publishing is still
-pending. See docs/team-management-verification.md for exact scope/evidence.
+The first audience screenshot showed External + Testing with Branding incomplete.
+After saving the public homepage/privacy/terms URLs and publishing, the owner's
+final screenshot of the Reinwell project Audience page confirms External +
+In production. Google public publishing is complete as of October 16, 2026.
+This evidence establishes publishing status, not a separate Google brand or
+sensitive-scope verification approval. Only openid/email/profile are requested.
+See docs/team-management-verification.md for exact scope/evidence.
