@@ -1,3 +1,7 @@
+import { DashboardActivity } from '@/components/DashboardActivity';
+import { CareTaskForm } from '@/components/CareTaskForm';
+import { completeCareItem } from '@/app/care/actions';
+import { displayDate } from '@/lib/care-dates';
 import { requireFarm } from '@/lib/farm-access';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
@@ -25,6 +29,7 @@ function timeAgo(date: Date) {
 
 export default async function Dashboard() {
   const { membership } = await requireFarm();
+  const isStaff = membership.role === 'STAFF';
   const now = new Date();
   const weekAgo = new Date(now); weekAgo.setUTCDate(now.getUTCDate() - 7);
   const nextWeek = new Date(now); nextWeek.setUTCDate(now.getUTCDate() + 7);
@@ -42,6 +47,7 @@ export default async function Dashboard() {
     prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek }, horse: { farmId: membership.farmId } }, include: { horse: true }, orderBy: { nextDueDate: 'asc' } }),
   ]);
 
+  const myTasks = careItems.filter(item => item.assignedMemberId === membership.id);
   const overdueHorses = horses.filter((horse) => {
     const rideDays = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime, now) : null;
     const washDays = horse.washes[0] ? getDaysSince(horse.washes[0].dateTime, now) : null;
@@ -62,12 +68,25 @@ export default async function Dashboard() {
         <div>
           <p className="eyebrow">{formatDate(now)}</p>
           <h1 className="mt-3 font-display text-4xl text-[#17201a] sm:text-5xl">{greeting()}.</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-[#657067]">Overdue care, upcoming tasks, and recent rides and grooming.</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[#657067]">{isStaff ? 'Your assigned care and quick activity logging for the day ahead.' : 'Overdue care, upcoming tasks, and recent rides and grooming.'}</p>
         </div>
         <div className="flex items-center gap-2 rounded-full border border-[#d8d7cd] bg-white/60 px-4 py-2 text-xs font-semibold text-[#516057]">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" /> Farm overview
+          <span className="h-2 w-2 rounded-full bg-emerald-500" /> {isStaff ? 'My work' : 'Farm overview'}
         </div>
       </header>
+
+      <section className="premium-card mb-6 overflow-hidden rounded-3xl" aria-label="My tasks">
+        <div className="flex items-center justify-between gap-3 border-b border-[#e5e2d9] px-5 py-5 sm:px-7">
+          <div><h2 className="font-display text-2xl">My tasks</h2><p className="mt-1 text-xs text-[#7b837c]">Your overdue care and tasks due in the next 7 days. Dates use UTC.</p></div>
+          <Link href="/care?assigned=mine" className="shrink-0 text-xs font-bold text-[#315c47]">View all assigned</Link>
+        </div>
+        {myTasks.length ? myTasks.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 last:border-0 sm:px-7">
+          <div><Link href={`/horses/${item.horseId}`} className="text-sm font-bold">{item.horse.name} · {item.itemName}</Link><p className={`mt-1 text-xs ${careStatus(item.nextDueDate!, now) === 'overdue' ? 'text-[#a24b35]' : 'text-[#657067]'}`}>{careStatus(item.nextDueDate!, now) === 'overdue' ? 'Overdue · ' : careStatus(item.nextDueDate!, now) === 'today' ? 'Due today · ' : 'Due '}{displayDate(item.nextDueDate!)}</p></div>
+          <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+        </div>) : <p className="px-5 py-8 text-sm text-[#657067]">No care assigned to you is due in the next 7 days. <Link href="/care?assigned=mine" className="font-semibold text-[#315c47]">View all assigned care</Link></p>}
+      </section>
+
+      <DashboardActivity horses={horses.map(({ id, name }) => ({ id, name }))} />
 
       <section className="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
@@ -105,11 +124,11 @@ export default async function Dashboard() {
           ) : (
             <div className="divide-y divide-[#ebe8df]">
               {overdueCare.slice(0, 4).map((item) => (
-                <Link key={item.id} href={`/care?horseId=${item.horseId}`} className="group flex items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
+                <div key={item.id} className="group flex flex-wrap items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4e5df] text-[#a24b35]"><CalendarDays className="h-[18px] w-[18px]" /></div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#26332a]">{item.itemName}</p><p className="mt-1 text-xs text-[#7b837c]">{item.horse.name} · overdue care</p></div>
-                  <ArrowUpRight className="h-4 w-4 text-[#a9afa9] transition group-hover:text-[#183d2f]" />
-                </Link>
+                  <div className="min-w-0 flex-1"><Link href={`/care?horseId=${item.horseId}`} className="text-sm font-bold text-[#26332a]">{item.itemName}</Link><p className="mt-1 text-xs text-[#7b837c]">{item.horse.name} · overdue care</p></div>
+                  <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+                </div>
               ))}
               {overdueHorses.slice(0, Math.max(0, 5 - Math.min(4, overdueCare.length))).map((horse) => (
                 <Link key={horse.id} href={`/horses/${horse.id}`} className="group flex items-center gap-4 px-5 py-4 transition hover:bg-white sm:px-7">
@@ -130,11 +149,12 @@ export default async function Dashboard() {
           </div>
           <div className="p-3">
             {upcomingCare.length === 0 ? <p className="px-3 py-12 text-center text-sm text-[#7b837c]">No care due in the next 7 days.</p> : upcomingCare.slice(0, 5).map((item) => (
-              <Link key={item.id} href={`/care?horseId=${item.horseId}`} className="flex items-center gap-4 rounded-2xl px-3 py-3 hover:bg-white">
+              <div key={item.id} className="flex flex-wrap items-center gap-4 rounded-2xl px-3 py-3 hover:bg-white">
                 <div className="w-11 shrink-0 text-center"><p className="text-[10px] font-bold uppercase tracking-wider text-[#a17c42]">{item.nextDueDate!.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</p><p className="font-display text-2xl leading-none">{item.nextDueDate!.getUTCDate()}</p></div>
                 <div className="h-8 w-px bg-[#e2dfd5]" />
-                <div className="min-w-0"><p className="truncate text-sm font-bold">{item.itemName}</p><p className="mt-1 truncate text-xs text-[#7b837c]">{item.horse.name} · {item.itemType.replaceAll('_', ' ')}</p></div>
-              </Link>
+                <div className="min-w-0 flex-1"><Link href={`/care?horseId=${item.horseId}`} className="text-sm font-bold">{item.itemName}</Link><p className="mt-1 text-xs text-[#7b837c]">{item.horse.name} · {item.itemType.replaceAll('_', ' ')}</p></div>
+                <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
+              </div>
             ))}
           </div>
         </section>

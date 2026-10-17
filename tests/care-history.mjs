@@ -48,6 +48,31 @@ try {
   await db.farmMember.update({ where: { id: staff.member.id }, data: { status: 'ACTIVE' } });
   const mine = await fetch(base + '/care?assigned=mine', { headers: { cookie: staff.cookie } });
   const mineHtml = await mine.text(); assert.ok(mineHtml.includes('Recurring farrier')); assert.ok(!mineHtml.includes('Foreign care horse'));
+  const dashboardResponse = await fetch(base + '/dashboard', { headers: { cookie: staff.cookie } });
+  assert.equal(dashboardResponse.status, 200);
+  const dashboardHtml = await dashboardResponse.text();
+  assert.ok(dashboardHtml.includes('My work'));
+  assert.ok(dashboardHtml.indexOf('aria-label="My tasks"') < dashboardHtml.indexOf('aria-label="Quick activity"'));
+  const tasksHtml = dashboardHtml.split('aria-label="My tasks"')[1].split('</section>')[0];
+  assert.ok(tasksHtml.includes('Recurring farrier'));
+  assert.ok(tasksHtml.includes('expectedDueDate'));
+  assert.ok(!dashboardHtml.includes('Foreign care horse'));
+  const managerDashboard = await fetch(base + '/dashboard', { headers: { cookie: manager.cookie } });
+  const managerHtml = await managerDashboard.text();
+  assert.ok(managerHtml.includes('Farm overview'));
+  assert.ok(!managerHtml.split('aria-label="My tasks"')[1].split('</section>')[0].includes('Recurring farrier'));
+  for (const [path, values] of [
+    ['/api/rides', { riderName: 'Staff', rideType: 'FLAT', durationMinutes: 20 }],
+    ['/api/washes', { type: 'GROOM_ONLY' }],
+  ]) {
+    const send = horseId => fetch(base + path, { method: 'POST', headers: { cookie: staff.cookie, origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ horseId, dateTime: new Date().toISOString(), ...values }) });
+    assert.equal((await send(foreignHorse.id)).status, 404);
+    assert.equal((await send(horse.id)).status, 200);
+  }
+  assert.equal(await db.rideLog.count({ where: { horseId: horse.id } }), 1);
+  assert.equal(await db.washLog.count({ where: { horseId: horse.id } }), 1);
+  const afterActivity = await (await fetch(base + '/dashboard', { headers: { cookie: staff.cookie } })).text();
+  assert.ok(afterActivity.includes('GROOM ONLY'));
   assert.equal(await action('completeCareItem', { id: item.id }, foreign.cookie), 500);
   const expectedDueDate = item.nextDueDate.toISOString();
   const results = await Promise.all([action('completeCareItem', { id: item.id, expectedDueDate }, staff.cookie), action('completeCareItem', { id: item.id, expectedDueDate }, staff.cookie)]);
