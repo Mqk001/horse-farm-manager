@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as bcrypt from 'bcryptjs';
+import { verifyPassword } from '../src/lib/passwords';
 import { prisma } from '../src/lib/prisma';
 import { issuePasswordReset, resetPassword, resetTokenHash } from '../src/lib/password-reset';
 import { POST as forgot } from '../src/app/api/auth/forgot-password/route';
@@ -25,8 +26,8 @@ async function main() {
   assert.equal(await resetPassword(rotated, 'another-password'), false);
   const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
   assert.equal(updated.sessionVersion, 1);
-  assert.ok(await bcrypt.compare('new-password', updated.password));
-  assert.equal(await bcrypt.compare('old-password', updated.password), false);
+  assert.ok(await verifyPassword('new-password', updated.password));
+  assert.equal(await verifyPassword('old-password', updated.password), false);
   assert.equal(updated.googleSubject, 'reset-google-subject');
   assert.equal((await prisma.farmMember.findUniqueOrThrow({ where: { farmId_userId: { farmId: farm.id, userId: user.id } } })).role, 'MANAGER');
   const stale = await issuePasswordReset(user.id);

@@ -1,4 +1,5 @@
 'use server';
+import { validateFormData } from '@/lib/request-limits';
 import { parseCareDate } from '@/lib/care-dates';
 
 import { canManageFarm } from '@/lib/permissions';
@@ -7,17 +8,17 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 
-const optionalText = z.string().trim().transform((value) => value || undefined);
+const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || undefined);
 
 const createCareItemSchema = z.object({
-  horseId: z.string().min(1),
+  horseId: z.string().min(1).max(100),
   itemType: z.string().trim().min(1).max(40),
   itemName: z.string().trim().min(1).max(100),
-  nextDueDate: z.string().min(1),
+  nextDueDate: z.string().length(10),
   intervalDays: z.coerce.number().int().positive().max(3650).optional(),
-  vetName: optionalText,
-  notes: optionalText,
-  assignedMemberId: optionalText,
+  vetName: optionalText(100),
+  notes: optionalText(10000),
+  assignedMemberId: optionalText(100),
 });
 
 function addDays(date: Date, days: number) {
@@ -35,6 +36,7 @@ function refreshCareViews(horseId: string) {
 }
 
 export async function createCareItem(formData: FormData) {
+  validateFormData(formData);
   const intervalValue = formData.get('intervalDays')?.toString().trim();
   const parsed = createCareItemSchema.parse({
     horseId: formData.get('horseId'),
@@ -71,8 +73,9 @@ export async function createCareItem(formData: FormData) {
 }
 
 export async function completeCareItem(formData: FormData) {
+  validateFormData(formData);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).parse(formData.get('id'));
+  const id = z.string().min(1).max(100).parse(formData.get('id'));
   const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
   if (!item || !item.nextDueDate) throw new Error('Scheduled care item not found');
   const expectedDue = formData.get('expectedDueDate')?.toString();
@@ -95,9 +98,10 @@ export async function completeCareItem(formData: FormData) {
 }
 
 export async function assignCareItem(formData: FormData) {
+  validateFormData(formData);
   const { farmId, membership } = await requireFarm();
   if (!['MANAGER', 'SUPER_ADMIN'].includes(membership.role)) throw new Error('Only managers can assign care');
-  const id = z.string().min(1).parse(formData.get('id'));
+  const id = z.string().min(1).max(100).parse(formData.get('id'));
   const assignedMemberId = formData.get('assignedMemberId')?.toString() || null;
   const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
   if (!item) throw new Error('Care item not found');
@@ -109,10 +113,11 @@ export async function assignCareItem(formData: FormData) {
 }
 
 export async function rescheduleCareItem(formData: FormData) {
+  validateFormData(formData);
   const { farmId, membership } = await requireFarm();
   if (!canManageFarm(membership.role)) throw new Error('Only farm managers can schedule or reschedule care.');
-  const id = z.string().min(1).parse(formData.get('id'));
-  const dueDate = z.string().min(1).parse(formData.get('nextDueDate'));
+  const id = z.string().min(1).max(100).parse(formData.get('id'));
+  const dueDate = z.string().min(1).max(100).parse(formData.get('nextDueDate'));
   const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
   if (!item) throw new Error('Care item not found');
   await prisma.vetItem.update({ where: { id, horse: { farmId } }, data: { nextDueDate: parseCareDate(dueDate) } });

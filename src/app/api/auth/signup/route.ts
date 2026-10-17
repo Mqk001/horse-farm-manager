@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/passwords';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/prisma';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   if (process.env.NODE_ENV === 'production' && !process.env.RESEND_API_KEY) return NextResponse.json({ error: 'Signup is temporarily unavailable. Please try again later.' }, { status: 503 });
 
-  const user = await prisma.user.create({ data: { name, email, password: await bcrypt.hash(password, 12), role: 'STAFF', termsAcceptedAt: new Date() } });
+  const user = await prisma.user.create({ data: { name, email, password: await hashPassword(password), role: 'STAFF', termsAcceptedAt: new Date() } });
   const token = randomBytes(32).toString('hex');
   await prisma.emailVerificationToken.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24) } });
   // Keep the token out of proxy and preview-protection requests. The client

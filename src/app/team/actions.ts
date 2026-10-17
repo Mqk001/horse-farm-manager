@@ -1,4 +1,5 @@
 'use server';
+import { validateFormData } from '@/lib/request-limits';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireFarm } from '@/lib/farm-access';
@@ -8,9 +9,10 @@ import { parseCareDate } from '@/lib/care-dates';
 
 function refresh() { revalidatePath('/team'); revalidatePath('/dashboard'); }
 export async function createFarmTask(data: FormData) {
+  validateFormData(data);
   const { farmId, user } = await requireFarm();
   const title = z.string().trim().min(1).max(300).parse(data.get('title'));
-  const assignedMemberId = z.string().min(1).parse(data.get('assignedMemberId'));
+  const assignedMemberId = z.string().min(1).max(100).parse(data.get('assignedMemberId'));
   const dueValue = data.get('dueDate')?.toString();
   const dueDate = dueValue ? parseCareDate(dueValue) : null;
   await prisma.$transaction(async tx => {
@@ -23,8 +25,9 @@ export async function createFarmTask(data: FormData) {
   refresh();
 }
 export async function completeFarmTask(data: FormData) {
+  validateFormData(data);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).parse(data.get('id'));
+  const id = z.string().min(1).max(100).parse(data.get('id'));
   await prisma.$transaction(async tx => {
     await tx.farm.update({ where: { id: farmId }, data: { updatedAt: new Date() } });
     const actor = await tx.farmMember.findUnique({ where: { farmId_userId: { farmId, userId: user.id } } });
@@ -35,8 +38,9 @@ export async function completeFarmTask(data: FormData) {
   refresh();
 }
 export async function assignFarmTask(data: FormData) {
+  validateFormData(data);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).parse(data.get('id'));
+  const id = z.string().min(1).max(100).parse(data.get('id'));
   const assignedMemberId = data.get('assignedMemberId')?.toString() || null;
   await prisma.$transaction(async tx => {
     await tx.farm.update({ where: { id: farmId }, data: { updatedAt: new Date() } });
@@ -50,8 +54,9 @@ export async function assignFarmTask(data: FormData) {
 }
 
 export async function dismissCompletedTask(data: FormData) {
+  validateFormData(data);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).parse(data.get('id'));
+  const id = z.string().min(1).max(100).parse(data.get('id'));
   const kind = z.enum(['farm', 'care']).parse(data.get('kind'));
   await prisma.$transaction(async tx => {
     await tx.farm.update({ where: { id: farmId }, data: { updatedAt: new Date() } });

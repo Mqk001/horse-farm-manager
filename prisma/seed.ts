@@ -1,9 +1,15 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '../src/lib/passwords';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD;
+  const staffPassword = process.env.SEED_STAFF_PASSWORD;
+  if (!ownerPassword || !staffPassword || ownerPassword.length < 12 || staffPassword.length < 12 || ownerPassword === staffPassword) throw new Error('Set distinct SEED_OWNER_PASSWORD and SEED_STAFF_PASSWORD values of at least 12 characters before seeding.');
+  // Validate/hash before any destructive seed operation.
+  const ownerHash = await hashPassword(ownerPassword);
+  const staffHash = await hashPassword(staffPassword);
   console.log('🌱 Seeding database...');
 
   await prisma.user.deleteMany();
@@ -11,12 +17,10 @@ async function main() {
   await prisma.horse.deleteMany();
   await prisma.settings.deleteMany();
 
-  const hash = await bcrypt.hash('password123', 10);
-  
   await prisma.user.create({
     data: {
       email: 'owner@horsefarm.com',
-      password: hash,
+      password: ownerHash,
       name: 'Farm Owner',
       role: 'OWNER',
     },
@@ -25,7 +29,7 @@ async function main() {
   await prisma.user.create({
     data: {
       email: 'staff@horsefarm.com',
-      password: hash,
+      password: staffHash,
       name: 'Farm Staff',
       role: 'STAFF',
     },
@@ -69,11 +73,9 @@ async function main() {
   });
 
   console.log('✅ Seed completed!');
-  console.log('\nTest credentials:');
-  console.log('Owner: owner@horsefarm.com / password123');
-  console.log('Staff: staff@horsefarm.com / password123');
+  console.log('Seed accounts created using the supplied passwords.');
 }
 
 main()
-  .catch(console.error)
+  .catch(error => { console.error(error); process.exitCode = 1; })
   .finally(() => prisma.$disconnect());

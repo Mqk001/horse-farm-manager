@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/passwords';
 import { prisma } from '@/lib/prisma';
 
 export class GoogleAccountError extends Error {
@@ -25,6 +25,6 @@ export async function resolveGoogleAccount(identity: GoogleIdentity, termsAccept
   }
   if (!termsAccepted) throw new GoogleAccountError('terms_required');
   // No usable password is created; email/password login cannot guess this value.
-  const password = await bcrypt.hash(randomBytes(48).toString('base64url'), 12);
+  const password = await hashPassword(randomBytes(48).toString('base64url'));
   return prisma.user.create({ data: { email: identity.email, name: identity.name, googleSubject: identity.subject, password, role: 'STAFF', emailVerifiedAt: new Date(), termsAcceptedAt: new Date() } });
 }

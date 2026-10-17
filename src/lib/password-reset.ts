@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/passwords';
 import { z } from 'zod';
 import { prisma } from './prisma';
 
@@ -25,7 +25,7 @@ export async function resetPassword(token: string, password: string) {
   const tokenHash = resetTokenHash(token);
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
   if (!record || record.expiresAt <= new Date()) return false;
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const hashedPassword = await hashPassword(password);
   return prisma.$transaction(async tx => {
     const consumed = await tx.passwordResetToken.deleteMany({ where: { id: record.id, expiresAt: { gt: new Date() } } });
     if (consumed.count !== 1) return false;

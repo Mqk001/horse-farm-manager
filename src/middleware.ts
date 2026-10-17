@@ -1,7 +1,13 @@
+import { validateRequestPayload, PayloadError } from '@/lib/request-limits';
 import { verifySession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  try { await validateRequestPayload(request.clone(), request.nextUrl.pathname.startsWith('/api/')); }
+  catch (error) {
+    if (error instanceof PayloadError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Could not read request body.' }, { status: 400 });
+  }
   const isPublic = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     const origin = request.headers.get('origin');

@@ -1,4 +1,5 @@
 'use client';
+import { validateFormData, PayloadError } from '@/lib/request-limits';
 
 import { useState, type FormEvent, type ReactNode } from 'react';
 
@@ -11,11 +12,12 @@ export function CareTaskForm({ action, children, className }: { action: (data: F
     const data = new FormData(event.currentTarget);
     setPending(true); setError('');
     try {
+      validateFormData(data);
       await action(data);
       // Retain the current filters while showing the persisted task state.
       window.location.reload();
-    } catch {
-      setError('Could not save this task. Refresh and try again.');
+    } catch (error) {
+      setError(error instanceof PayloadError ? error.message : 'Could not save this task. Refresh and try again.');
       setPending(false);
     }
   }

@@ -25,7 +25,7 @@ export function HorseForm({ horse }: { horse?: HorseFields }) {
           washIntervalDays: Number(form.get('washIntervalDays')),
         }),
       });
-      if (!response.ok) throw new Error('Could not save this horse. Please try again.');
+      if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error ?? 'Could not save this horse. Please try again.'); }
       const saved = await response.json();
       router.push('/horses/' + saved.id + '?saved=1'); router.refresh();
     } catch (error) { setError(error instanceof Error ? error.message : 'Unable to save.'); setBusy(false); }

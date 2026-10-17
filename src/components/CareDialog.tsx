@@ -1,4 +1,5 @@
 'use client';
+import { validateFormData, PayloadError } from '@/lib/request-limits';
 import { useState, type ReactNode, type FormEvent } from 'react';
 import { Dialog } from './Dialog';
 export function CareDialog({ children, action, disabled }: { children: ReactNode; action: (data: FormData) => Promise<void>; disabled: boolean }) {
@@ -10,8 +11,8 @@ export function CareDialog({ children, action, disabled }: { children: ReactNode
     event.preventDefault(); if (busy) return;
     const data = new FormData(event.currentTarget);
     setBusy(true); setError('');
-    try { await action(data); setOpen(false); setSaved(true); window.location.reload(); }
-    catch { setError('Care could not be saved. Check the fields and try again.'); }
+    try { validateFormData(data); await action(data); setOpen(false); setSaved(true); window.location.reload(); }
+    catch (error) { setError(error instanceof PayloadError ? error.message : 'Care could not be saved. Check the fields and try again.'); }
     finally { setBusy(false); }
   }
   return <div>

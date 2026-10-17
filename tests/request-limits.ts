@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { validateJson, validateFormData, validateRequestPayload, PayloadError, REQUEST_LIMITS } from '../src/lib/request-limits';
+const fails = (fn: () => unknown, status = 413) => assert.throws(fn, (e: unknown) => e instanceof PayloadError && e.status === status);
+const json = (body: string, headers: Record<string, string> = {}) => new Request('http://localhost/api/test', { method: 'POST', body, headers: { 'Content-Type': 'application/json', ...headers } });
+async function main() {
+  assert.deepEqual(validateJson('{"text":"escaped \\\" [ { string"}'), {text:'escaped " [ { string'});
+  assert.equal(validateJson('['.repeat(10)+'0'+']'.repeat(10)) instanceof Array, true);
+  fails(() => validateJson('['.repeat(11)+'0'+']'.repeat(11)));
+  fails(() => validateJson(JSON.stringify({unused:Array(101).fill(0)})));
+  fails(() => validateJson(JSON.stringify(Object.fromEntries(Array.from({length:101},(_,i)=>['key'+i,1])))));
+  fails(() => validateJson(JSON.stringify(Array.from({length:11},()=>Array(100).fill(0)))));
+  fails(() => validateJson(JSON.stringify({text:'x'.repeat(10001)})));
+  fails(() => validateJson('{bad'),400);
+  await validateRequestPayload(json('{}'+' '.repeat(REQUEST_LIMITS.bodyBytes-2)),true);
+  await assert.rejects(validateRequestPayload(json('{}'+' '.repeat(REQUEST_LIMITS.bodyBytes-1)),true), (e:any)=>e.status===413);
+  await assert.rejects(validateRequestPayload(json('{}',{'content-length':'65537'}),true),(e:any)=>e.status===413);
+  await assert.rejects(validateRequestPayload(json('[]'),true),(e:any)=>e.status===400);
+  await assert.rejects(validateRequestPayload(json('{}',{'content-encoding':'gzip'}),true),(e:any)=>e.status===415);
+  const stream = new ReadableStream({ start(controller) { for(let i=0;i<17;i++)controller.enqueue(new Uint8Array(4096).fill(32)); controller.close(); } });
+  const chunked = new Request('http://localhost/api/test',{method:'POST',body:stream,duplex:'half',headers:{'content-type':'application/json','content-length':'2'}} as RequestInit);
+  await assert.rejects(validateRequestPayload(chunked,true),(e:any)=>e.status===413);
+  const form = new FormData(); form.set('notes','Normal care notes'); validateFormData(form);
+  form.set('notes','x'.repeat(10001)); fails(()=>validateFormData(form));
+  form.set('notes','ok');form.set('file',new File(['content'],'horse.jpg'));fails(()=>validateFormData(form));
+  form.delete('file');for(let i=0;i<50;i++)form.append('field'+i,'value');fails(()=>validateFormData(form));
+  const validForm=new FormData();validForm.set('notes','Good notes');
+  await validateRequestPayload(new Request('http://localhost/care',{method:'POST',body:validForm}),false);
+  console.log('PASS: body byte boundaries, lying/missing lengths, streamed overflow, JSON depth/width/nodes/strings, malformed bodies, compression, fields and upload rejection.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

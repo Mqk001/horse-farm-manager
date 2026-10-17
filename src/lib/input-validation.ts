@@ -10,8 +10,8 @@ export const horseSchema = z.object({
   washIntervalDays: z.number().int().min(1).max(3650).optional(),
 });
 const activityBase = {
-  horseId: z.string().min(1),
-  dateTime: z.string().datetime({ offset: true }).refine(value => {
+  horseId: z.string().min(1).max(100),
+  dateTime: z.string().max(40).datetime({ offset: true }).refine(value => {
     const calendar = new Date(`${value.slice(0, 10)}T00:00:00Z`);
     return Number.isFinite(Date.parse(value)) && !Number.isNaN(calendar.getTime()) && calendar.toISOString().slice(0, 10) === value.slice(0, 10);
   }, 'Enter a valid date and time.').transform(value => new Date(value)),

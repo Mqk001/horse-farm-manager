@@ -10,6 +10,10 @@ async function main() {
   const user = await prisma.user.create({ data: { email, password: await bcrypt.hash('before-reset', 4), emailVerifiedAt: new Date() } });
   const login = await post('/api/auth/login', { email, password: 'before-reset' });
   assert.equal(login.status, 200);
+  const migrated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+  assert.ok(migrated.password.startsWith('$scrypt$v1$'));
+  assert.equal(migrated.sessionVersion, user.sessionVersion);
+  assert.equal((await post('/api/auth/login', {email,password:'before-reset'})).status,200);
   const cookie = login.headers.get('set-cookie')!.split(';')[0];
   assert.equal((await fetch(`${base}/api/me`, { headers: { cookie } })).status, 200);
   const token = await issuePasswordReset(user.id);
@@ -21,6 +25,11 @@ async function main() {
   assert.equal((await fetch(`${base}/api/me`, { headers: { cookie } })).status, 401);
   assert.equal((await post('/api/auth/login', { email, password: 'before-reset' })).status, 401);
   assert.equal((await post('/api/auth/login', { email, password: 'after-reset' })).status, 200);
+  const longPassword = 'a'.repeat(72) + 'full-password-suffix';
+  const longToken = await issuePasswordReset(user.id);
+  assert.equal((await post('/api/auth/reset-password',{token:longToken,password:longPassword})).status,200);
+  assert.equal((await post('/api/auth/login',{email,password:'a'.repeat(72)+'different-suffix'})).status,401);
+  assert.equal((await post('/api/auth/login',{email,password:longPassword})).status,200);
   assert.equal((await post('/api/auth/forgot-password', { email })).status, 503);
   for (const path of ['/forgot-password', '/reset-password']) assert.equal((await fetch(`${base}${path}`)).status, 200);
   console.log('PASS: real production HTTP login/reset/replay, old-session rejection, old/new password checks, cleared cookies, foreign origin, fail-closed email configuration and public pages');
