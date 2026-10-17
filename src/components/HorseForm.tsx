@@ -33,7 +33,7 @@ export function HorseForm({ horse }: { horse?: HorseFields }) {
   return <main className="page-shell">
     <div className="mx-auto max-w-3xl">
       <p className="eyebrow">The stable</p><h1 className="mt-3 font-display text-4xl">{horse ? 'Edit ' + horse.name : 'Welcome a new horse'}</h1>
-      <p className="mb-8 mt-3 text-sm text-[#667169]">A profile and care rhythm tailored to your horse.</p>
+      <p className="mb-8 mt-3 text-sm text-[#667169]">Set profile details and ride and grooming intervals.</p>
       <form onSubmit={submit} className="reinwell-form premium-card rounded-3xl p-5 sm:p-8">
         <fieldset disabled={busy} className="grid gap-5 sm:grid-cols-2">
           <legend className="mb-5 font-display text-2xl">Profile details</legend>

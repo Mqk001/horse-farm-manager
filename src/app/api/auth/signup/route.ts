@@ -38,8 +38,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'We could not send the verification email. Please try again.' }, { status: 502 });
     }
   }
-    return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email }, ...(process.env.NODE_ENV !== 'production' ? { verificationUrl } : {}) }, { status: 201 });
+    return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email }, ...(process.env.NODE_ENV === 'development' ? { verificationUrl } : {}) }, { status: 201 });
   } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') return NextResponse.json({ error: 'An account with that email already exists.' }, { status: 409 });
     console.error('Signup failed:', error);
     return NextResponse.json({ error: 'We could not create your account. Please try again.' }, { status: 500 });
   }

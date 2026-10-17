@@ -2,7 +2,7 @@ import { verifySession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const isPublic = ['/login', '/signup', '/verify-email', '/invite', '/terms', '/privacy'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
+  const isPublic = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     const origin = request.headers.get('origin');
     if (origin) {

@@ -72,11 +72,7 @@ export function DeleteHorseModal({ horseId, horseName, onClose }: DeleteHorseMod
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-red-500">•</span>
-                All veterinary records
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-red-500">•</span>
-                All alerts and notifications
+                All scheduled care and care history
               </li>
             </ul>
           </div>

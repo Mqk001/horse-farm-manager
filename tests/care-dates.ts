@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { startOfDay, endOfDay, inputDate, displayDate, parseCareDate, getDaysSince, activityOverdue, careStatus } from '../src/lib/care-dates';
+const now = new Date('2026-11-01T01:30:00Z');
+assert.equal(startOfDay(now).toISOString(), '2026-11-01T00:00:00.000Z');
+assert.equal(endOfDay(now).toISOString(), '2026-11-01T23:59:59.999Z');
+assert.equal(inputDate(now), '2026-11-01');
+assert.equal(displayDate(now), 'Nov 1, 2026');
+assert.equal(parseCareDate('2028-02-29').toISOString(), '2028-02-29T12:00:00.000Z');
+for (const date of ['2026-02-29', '2026-02-31', '2026-13-01', '2026-1-01']) assert.throws(() => parseCareDate(date));
+assert.equal(careStatus(new Date('2026-10-31T23:59:59Z'), now), 'overdue');
+assert.equal(careStatus(new Date('2026-11-01T23:59:59Z'), now), 'today');
+assert.equal(careStatus(new Date('2026-11-02T00:00:00Z'), now), 'upcoming');
+assert.equal(getDaysSince('2026-11-03T00:00:00Z', now), 0);
+assert.equal(getDaysSince('2026-10-28T01:30:00Z', now), 4);
+assert.equal(activityOverdue(null, 3), false);
+assert.equal(activityOverdue(3, 3), false);
+assert.equal(activityOverdue(4, 3), true);
+console.log('PASS: shared UTC care dates, leap dates, day boundaries, future activity and overdue thresholds');

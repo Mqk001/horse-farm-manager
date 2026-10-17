@@ -19,5 +19,5 @@ function VerificationContent() {
     hasVerified.current = true;
     fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) }).then(async (response) => { if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error ?? 'We could not verify this email. Please request a new link.'); } setMessage('Email verified. Redirecting to your dashboard…'); setTimeout(() => { router.push(afterSignInPath()); router.refresh(); }, 900); }).catch((error) => setMessage(error.message));
   }, [router, token]);
-  return <main className="login-page"><div className="login-mark">R</div><section className="login-card"><div className="login-heading"><p className="eyebrow">Reinwell</p><h1>Email verification</h1><p>{message}</p></div><p className="login-footer"><Link href="/login" className="font-semibold text-[#183d2f] underline underline-offset-4">Return to sign in</Link></p></section></main>;
+  return <main className="login-page"><div className="login-mark">R</div><section className="login-card"><div className="login-heading"><h1>Reinwell</h1><h2>Email verification</h2><p>{message}</p></div><p className="login-footer"><Link href="/login" className="font-semibold text-[#183d2f] underline underline-offset-4">Return to sign in</Link></p></section></main>;
 }

@@ -25,5 +25,5 @@ export default function InvitePage() {
       router.replace('/dashboard'); router.refresh();
     }).catch(error => setMessage(error.message));
   }, [router]);
-  return <main className="login-page"><div className="login-mark">R</div><section className="login-card"><div className="login-heading"><p className="eyebrow">Reinwell</p><h1>Farm invitation</h1><p role="status">{message}</p></div><p className="login-footer"><Link href="/login" className="underline">Sign in with your invited email</Link>{needsSignIn && <> or <Link href="/signup" className="underline">create an account</Link></>}</p></section></main>;
+  return <main className="login-page"><div className="login-mark">R</div><section className="login-card"><div className="login-heading"><h1>Reinwell</h1><h2>Farm invitation</h2><p role="status">{message}</p></div><p className="login-footer"><Link href="/login" className="underline">Sign in with your invited email</Link>{needsSignIn && <> or <Link href="/signup" className="underline">create an account</Link></>}</p></section></main>;
 }

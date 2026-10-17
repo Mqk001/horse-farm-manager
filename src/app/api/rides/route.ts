@@ -1,3 +1,4 @@
+import { rideSchema } from '@/lib/input-validation';
 import { getFarmAccess } from '@/lib/farm-access';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -7,13 +8,15 @@ export async function POST(request: Request) {
   try {
     const access = await getFarmAccess();
     if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
-    const body = await request.json();
+    const parsed = rideSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the form details.' }, { status: 400 });
+    const body = parsed.data;
     if (typeof body.horseId !== 'string' || !await prisma.horse.findFirst({ where: { id: body.horseId, farmId: access.farmId } })) return NextResponse.json({ error: 'Horse not found' }, { status: 404 });
 
     const ride = await prisma.rideLog.create({
       data: {
         horseId: body.horseId,
-        dateTime: new Date(body.dateTime),
+        dateTime: body.dateTime,
         riderName: body.riderName,
         rideType: body.rideType,
         durationMinutes: body.durationMinutes,

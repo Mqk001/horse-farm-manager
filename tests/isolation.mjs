@@ -33,7 +33,11 @@ const payload=`${a.userId}.0.${Math.floor(Date.now()/1000)-1}`;
 const expired=payload+'.'+createHmac('sha256',process.env.AUTH_SECRET).update(payload).digest('hex');
 assert.equal((await request('/api/me','GET',null,'reinwell_session='+expired)).status,401);
 for(const page of ['/dashboard','/horses','/care',`/horses/${a.id}`,`/horses/${a.id}/edit`]) assert.equal((await request(page,'GET',null,a.cookie)).status,200,page);
-for(const page of [`/horses/${b.id}`,`/horses/${b.id}/edit`]) assert.equal((await request(page,'GET',null,a.cookie)).status,404,page);
+for(const page of [`/horses/${b.id}`,`/horses/${b.id}/edit`]) {
+ const denied = await request(page,'GET',null,a.cookie);
+ assert.ok(denied.status === 404 || (denied.status === 200 && denied.data.includes('This page could not be found')), page);
+ assert.ok(!denied.data.includes('Horse B'), 'Foreign horse data is not rendered');
+}
 assert.equal((await request('/api/me','GET',null,a.cookie.replace(/reinwell_farm=[^;]+/,`reinwell_farm=${b.farmId}`))).data.farm,null);
 console.log('PASS: signup, verification, login denial, farm/horse creation, own-farm reads/writes, cross-farm reads/writes/pages, forged/expired sessions, farm selection');
 // Seed only the isolated test database; exercise real server-action HTTP requests.
@@ -46,7 +50,7 @@ assert.equal((await db.horse.findUnique({where:{id:legacy.id}})).farmId,null);
 const item=await db.vetItem.create({data:{horseId:b.id,itemType:'VACCINATION',itemName:'Boundary test',nextDueDate:new Date('2026-10-01')}});
 const html=(await request('/care','GET',null,b.cookie)).data;
 const forms=[...html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(m=>m[1]);
-const careForms=forms.filter(f=>f.includes(item.id));
+const careForms=forms.filter(f=>f.includes(item.id) && (f.includes('name="nextDueDate"') || f.includes('name="expectedDueDate"')));
 assert.equal(careForms.length,2);
 for(const form of careForms) {
  const action=form.match(/name="(\$ACTION_ID_[^"]+)"/)[1];

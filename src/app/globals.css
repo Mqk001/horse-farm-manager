@@ -79,3 +79,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Public pages have no workspace sidebar. */
+body:has(.landing-page, .login-page, .legal-copy) .app-content { padding-left: 0; }
+.login-heading h2 { margin: .75rem 0; color: var(--forest); font-size: 1.1rem; font-weight: 600; }
+.landing-page { background: radial-gradient(ellipse at 90% 30%, #dce5d4 0, transparent 55%), var(--linen); }

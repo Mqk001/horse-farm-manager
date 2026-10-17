@@ -1,5 +1,22 @@
 # Database deployment checkpoint
 
+> October 16 release update: care history and password-reset migrations are now
+> applied to hosted Supabase; Google identity was already applied. EMAIL_FROM
+> and the verified sending domain were already configured. See
+> docs/product-cleanup-release.md for current scope and verification status.
+
+
+## Pending care history and assignment upgrade (October 14, 2026)
+
+Local source now requires CareCompletion and VetItem.assignedMemberId. The
+additive migration is 20261014000000_care_history_assignments and includes
+legacy completion preservation and server-only RLS on the new table. It has
+not been applied to hosted PostgreSQL. The October 15 audit passed a local
+PGlite PostgreSQL rehearsal of the baseline, upgrade, backfill, RLS denial,
+and delete behavior. Validate the hosted connection, reconcile the existing
+baseline as described below, and apply the reviewed migration before
+deploying the new code. See docs/care-history-verification.md for local checks.
+
 The old migration directory contained SQLite SQL (`DATETIME`) and omitted farm/auth tables. It has been preserved in `prisma/legacy-sqlite-migrations`. The active PostgreSQL baseline is generated from the current Prisma schema.
 
 ## Fresh disposable PostgreSQL database

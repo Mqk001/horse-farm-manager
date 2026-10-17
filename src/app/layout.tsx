@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'Reinwell | Stable Management',
-  description: 'A considered home for every horse in your care.',
+  description: 'Stable care for farm teams.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

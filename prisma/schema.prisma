@@ -24,6 +24,7 @@ model User {
   invitations  FarmInvitation[] @relation("InvitationInvitee")
   sentInvites  FarmInvitation[] @relation("InvitationSender")
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model LoginRateLimit {
@@ -61,6 +62,8 @@ model Farm {
 }
 
 model FarmMember {
+  assignedCare VetItem[]
+
   id        String   @id @default(cuid())
   farmId    String
   userId    String
@@ -110,6 +113,7 @@ model Horse {
   rideIntervalDays  Int       @default(3)
   washIntervalDays  Int       @default(14)
   status            String    @default("ACTIVE")
+  // Frozen legacy storage: no feeding UI or application writes.
   feedingPlanJson   String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -117,11 +121,13 @@ model Horse {
   rides             RideLog[]
   washes            WashLog[]
   vetItems          VetItem[]
+  careCompletions   CareCompletion[]
   alerts            Alert[]
   farm              Farm?     @relation(fields: [farmId], references: [id], onDelete: Cascade)
   @@index([farmId])
 }
 
+// Frozen until a complete trainer workflow is introduced; no product UI.
 model Trainer {
   id        String    @id @default(cuid())
   farmId    String?
@@ -161,6 +167,11 @@ model WashLog {
 }
 
 model VetItem {
+  assignedMemberId String?
+  assignedMember FarmMember? @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  completions CareCompletion[]
+  @@index([assignedMemberId])
+
   id            String    @id @default(cuid())
   horseId       String
   horse         Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
@@ -175,6 +186,7 @@ model VetItem {
   updatedAt     DateTime  @updatedAt
 }
 
+// Frozen legacy storage. Overdue status is computed; do not add application writes.
 model Alert {
   id          String    @id @default(cuid())
   type        String
@@ -188,6 +200,7 @@ model Alert {
   resolvedAt  DateTime?
 }
 
+// Frozen legacy storage. Active intervals are configured on each Horse.
 model Settings {
   id                      String   @id @default("global")
   farmId                  String?  @unique
@@ -197,4 +210,33 @@ model Settings {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   farm                    Farm?    @relation(fields: [farmId], references: [id], onDelete: Cascade)
+}
+
+model CareCompletion {
+  id              String   @id @default(cuid())
+  horseId         String
+  horse           Horse    @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  careItemId      String?
+  careItem        VetItem? @relation(fields: [careItemId], references: [id], onDelete: SetNull)
+  completedAt     DateTime @default(now())
+  itemName        String
+  itemType        String
+  vetName         String?
+  notes           String?
+  completedByName String?
+  legacy          Boolean  @default(false)
+
+  @@index([horseId, completedAt])
+  @@index([careItemId])
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  sessionVersion Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }

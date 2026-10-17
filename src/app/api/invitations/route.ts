@@ -23,5 +23,5 @@ export async function POST(request: Request) {
   const invitationUrl = `${new URL(request.url).origin}/invite#token=${encodeURIComponent(token)}`;
   try { if (process.env.NODE_ENV === 'production') await sendFarmInvitationEmail({ to: email, farmName: access.membership.farm.name, role, invitationUrl }); }
   catch (error) { await prisma.farmInvitation.delete({ where: { id: invitation.id } }).catch(() => undefined); console.error('Invitation email failed:', error); return NextResponse.json({ error: 'We could not send the invitation. Please try again.' }, { status: 502 }); }
-  return NextResponse.json({ invitation: { id: invitation.id, email, role, expiresAt: invitation.expiresAt }, ...(process.env.NODE_ENV !== 'production' ? { invitationUrl } : {}) }, { status: 201 });
+  return NextResponse.json({ invitation: { id: invitation.id, email, role, expiresAt: invitation.expiresAt }, ...(process.env.NODE_ENV === 'development' ? { invitationUrl } : {}) }, { status: 201 });
 }

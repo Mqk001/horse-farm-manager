@@ -1,5 +1,11 @@
 # Google sign-in setup and verification
 
+> October 16 release update: care history and password-reset migrations are now
+> applied to hosted Supabase; Google identity was already applied. EMAIL_FROM
+> and the verified sending domain were already configured. See
+> docs/product-cleanup-release.md for current scope and verification status.
+
+
 Google Cloud project: Reinwell (`sturdy-shelter-511816-e0`). Billing was not enabled.
 The user accepted Google's first-time Cloud terms. OAuth branding, web client,
 credentials, and a real Google sign-in are still pending.
@@ -70,3 +76,40 @@ Official references:
 https://developers.google.com/identity/openid-connect/openid-connect
 https://developers.google.com/identity/gsi/web/guides/verify-google-id-token
 https://github.com/googleapis/google-auth-library-nodejs
+
+## Release handoff
+
+Code commit: 02a1e8cdf970c5798562de93ea7a899b876efd25.
+Production: dpl_5HWKvmrcREhgXN68PMW5bekhFRxT, READY.
+Live checks: /api/auth/google returns enabled=false because no Google client
+credentials exist in Vercel yet; /login responds 200 with the normal login UI.
+The owner approved using their existing Gmail address as Google support/contact.
+The owner still needs to complete branding/API-policy acceptance in Google Cloud.
+Chrome browser control disconnected; native Chrome could show the project URL,
+but not the form. In-app Google Cloud navigation loaded inconsistently and
+redirected to welcome/error, so it was not safe to keep submitting setup forms.
+Do not claim Google login is operational. Next: branding, web OAuth client,
+server-side credentials, redeploy this commit, then real account/invitation tests.
+
+## Credentials enabled (2026-10-16)
+
+Owner completed branding and web client creation and saved GOOGLE_CLIENT_ID
+and GOOGLE_CLIENT_SECRET as sensitive Vercel Production variables. Values were
+not retrieved. Redeployed tested commit 02a1e8c as
+dpl_B9mL2wZ3oiz3NrorwnMqMDpcyrHq; deployment READY. Live login now renders
+Continue with Google. Real browser start reaches Google's account chooser and
+consent for getreinwell.com with only name/profile picture and email.
+Awaiting owner consent before callback/session verification; secret correctness
+and end-to-end login remain unverified. Google public audience status remains
+uninspected.
+
+## Terms UX fix (2026-10-16)
+
+Owner reported new Google login returned to signup for missing terms. Commit
+2e5f69a now prompts for explicit terms acceptance before Google on login/signup;
+no password fields required for Google. Production deployment
+dpl_5xBj4WZtCwh9WkrZiJMYcUJnBJKX READY. Isolated production build and TypeScript
+passed. Local and live browser confirmed terms prompt appears on Google click,
+links are present, checkbox unchecked, final action disabled until acceptance.
+Owner still must perform acceptance and complete Google consent for live
+callback/session verification.

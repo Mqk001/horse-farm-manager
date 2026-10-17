@@ -1,14 +1,15 @@
 import { canManageFarm } from '@/lib/permissions';
+import { singleParams } from '@/lib/input-validation';
 import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
-import { getDaysSince } from '@/lib/utils';
-import Link from 'next/link';
+import { getDaysSince, activityOverdue } from '@/lib/care-dates';
+import { HorseTimeline, type TimelineParams } from './timeline';
 import { notFound } from 'next/navigation';
 import { HorseDetailClient } from './client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function HorseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function HorseDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<TimelineParams> }) {
   const resolvedParams = await params;
   const { farmId, membership } = await requireFarm();
   const horse = await prisma.horse.findUnique({
@@ -26,37 +27,20 @@ export default async function HorseDetailPage({ params }: { params: Promise<{ id
   const lastWash = horse.washes[0];
   const daysSinceRide = lastRide ? getDaysSince(lastRide.dateTime) : null;
   const daysSinceWash = lastWash ? getDaysSince(lastWash.dateTime) : null;
-  const rideOverdue = daysSinceRide && daysSinceRide > horse.rideIntervalDays;
-  const washOverdue = daysSinceWash && daysSinceWash > horse.washIntervalDays;
+  const rideOverdue = activityOverdue(daysSinceRide, horse.rideIntervalDays);
+  const washOverdue = activityOverdue(daysSinceWash, horse.washIntervalDays);
 
-  const activities = [
-    ...horse.rides.map(r => ({ 
-      id: r.id,
-      dateTime: r.dateTime.toISOString(),
-      type: 'ride' as const,
-      riderName: r.riderName,
-      rideType: r.rideType,
-      durationMinutes: r.durationMinutes,
-      notes: r.notes,
-    })),
-    ...horse.washes.map(w => ({ 
-      id: w.id,
-      dateTime: w.dateTime.toISOString(),
-      type: 'wash' as const,
-      washType: w.type,
-      notes: w.notes,
-    })),
-  ].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 15);
+  const { rides, washes, ...profile } = horse;
 
   return (
     <HorseDetailClient
       canManage={canManageFarm(membership.role)}
-      horse={JSON.parse(JSON.stringify(horse))}
+      horse={JSON.parse(JSON.stringify(profile))}
       daysSinceRide={daysSinceRide}
       daysSinceWash={daysSinceWash}
       rideOverdue={rideOverdue}
       washOverdue={washOverdue}
-      activities={activities}
+      timeline={<HorseTimeline horseId={horse.id} farmId={farmId} filters={singleParams(await searchParams)} />}
     />
   );
 }

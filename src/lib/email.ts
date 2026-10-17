@@ -32,3 +32,17 @@ export async function sendFarmInvitationEmail({ to, farmName, role, invitationUr
   }) });
   if (!response.ok) throw new Error(`Resend rejected the invitation email (${response.status})`);
 }
+
+export async function sendPasswordResetEmail({ to, name, resetUrl }: { to: string; name: string; resetUrl: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM ?? 'Reinwell <onboarding@resend.dev>', to: [to], subject: 'Reset your Reinwell password',
+      text: `Hi ${name},\n\nReset your Reinwell password:\n${resetUrl}\n\nThis link expires in 30 minutes and can be used once. If you did not request this, you can ignore this email.`,
+      html: `<p>Hi ${escapeHtml(name)},</p><p><a href="${escapeHtml(resetUrl)}">Reset your Reinwell password</a></p><p>This link expires in 30 minutes and can be used once.</p><p>If you did not request this, you can ignore this email.</p>`,
+    }),
+  });
+  if (!response.ok) throw new Error('Password reset email delivery failed');
+}

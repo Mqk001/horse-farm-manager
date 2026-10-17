@@ -1,4 +1,5 @@
 import { canManageFarm } from '@/lib/permissions';
+import { horseSchema } from '@/lib/input-validation';
 import { getFarmAccess } from '@/lib/farm-access';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -9,7 +10,9 @@ export async function POST(request: Request) {
     const access = await getFarmAccess();
     if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
     if (!canManageFarm(access.membership.role)) return NextResponse.json({ error: 'Only farm managers can change horse profiles.' }, { status: 403 });
-    const body = await request.json();
+    const parsed = horseSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the form details.' }, { status: 400 });
+    const body = parsed.data;
 
     const horse = await prisma.horse.create({
       data: {
