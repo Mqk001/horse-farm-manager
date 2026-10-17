@@ -20,7 +20,7 @@ care schedule → horse timeline → team invitations.
   days, clamps future records to zero and is overdue strictly after the horse's
   configured interval. Care pages explicitly disclose UTC dates.
 - Alert, Settings, feedingPlanJson and Trainer are frozen legacy storage in both
-  Prisma schemas. There are no application reads/writes or product controls for
+  Prisma schemas. There are no product workflows or intentional application writes for
   them. No destructive schema drops were performed. createAlertKey was removed.
 - Releases the previously local dashboard, timeline, care history/assignment,
   input-validation work and password recovery after regression verification.
@@ -68,3 +68,24 @@ next-env.d.ts work is preserved separately from the release commit.
 Production deployment and live checks are recorded after the pinned build is
 ready. Google audience/publishing and Google-specific invitation flow remain
 separate unfinished checks; no new claim about those is made here.
+
+## Production result
+
+Source commit c90a1423ab78a9a4cb930d1d13cfab577eb7b7ae was pushed and deployed
+as dpl_9L1oQ8jA3kk5FVXtmJPtpkFr6YTA, READY, with getreinwell.com assigned.
+The initial incomplete deployment-tool request was rejected by automatic
+approval review; it made no deployment. The subsequent successful request
+explicitly pinned the reviewed commit, project, team and production environment.
+
+Live browser checks confirmed the public landing, navigation to login and
+forgot-password, Reinwell-first headings, and successful reset-request feedback.
+/api/auth/google still returns enabled=true. One reset email was requested for
+the owner-provided inbox. A retained unexpired hashed-token row confirms that
+the provider accepted the send (provider rejection deletes that row). Inbox
+receipt and password-change completion await the owner; neither is claimed.
+No account password was changed on production during these checks.
+
+Authenticated care/activity flows passed locally against the release source;
+this pass did not create or complete care in a real hosted farm. No test farm
+or test account was created in production. Only the owner-authorized reset
+request changed account-related hosted data.
