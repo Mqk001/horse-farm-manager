@@ -28,6 +28,7 @@ function addDays(date: Date, days: number) {
 
 function refreshCareViews(horseId: string) {
   revalidatePath('/care');
+  revalidatePath('/team');
   revalidatePath('/dashboard');
   revalidatePath('/horses');
   revalidatePath(`/horses/${horseId}`);

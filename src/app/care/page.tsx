@@ -4,10 +4,10 @@ import { singleParams } from '@/lib/input-validation';
 import { requireFarm } from '@/lib/farm-access';
 import Link from 'next/link';
 import { CareTaskForm } from '@/components/CareTaskForm';
-import { CareDialog } from '@/components/CareDialog';
+import { ScheduleCareDialog } from '@/components/ScheduleCareDialog';
 import { prisma } from '@/lib/prisma';
 import { CalendarCheck, Check, ChevronRight, Clock3, Plus } from 'lucide-react';
-import { assignCareItem, completeCareItem, createCareItem, rescheduleCareItem } from './actions';
+import { assignCareItem, completeCareItem, rescheduleCareItem } from './actions';
 
 export const dynamic = 'force-dynamic';
 type CareItem = Awaited<ReturnType<typeof getCareData>>['items'][number];
@@ -62,16 +62,7 @@ export default async function CarePage({ searchParams }: { searchParams: Promise
     <main className="page-shell">
       <header className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="eyebrow">Scheduled care</p><h1 className="mt-3 font-display text-4xl sm:text-5xl">Care schedule</h1><p className="mt-3 max-w-xl text-sm leading-6 text-[#68736b]">Track due dates, complete care, and assign tasks. Dates use UTC.</p></div>
-        {canAssign && <CareDialog action={createCareItem} disabled={!horses.length}>
-          <label className="text-xs font-bold text-[#59645c]">Horse<select name="horseId" required defaultValue={selected?.id ?? ''} className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal"><option value="" disabled>Select a horse</option>{horses.map(horse => <option key={horse.id} value={horse.id}>{horse.name}</option>)}</select></label>
-          <label className="text-xs font-bold text-[#59645c]">Care type<select name="itemType" className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal"><option value="VACCINATION">Vaccination</option><option value="FARRIER">Farrier</option><option value="DENTAL">Dental</option><option value="DEWORMING">Deworming</option><option value="MEDICATION">Medication</option><option value="VET_VISIT">Vet visit</option><option value="OTHER">Other</option></select></label>
-          <label className="text-xs font-bold text-[#59645c]">Task name<input name="itemName" required maxLength={100} placeholder="Spring vaccinations" className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal" /></label>
-          <label className="text-xs font-bold text-[#59645c]">Next due<input name="nextDueDate" type="date" required defaultValue={inputDate(new Date())} className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal" /></label>
-          <label className="text-xs font-bold text-[#59645c]">Repeat every (days)<input name="intervalDays" type="number" min={1} max={3650} placeholder="Optional" className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal" /></label>
-          {canAssign && <label className="text-xs font-bold text-[#59645c]">Assign to<select name="assignedMemberId" className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal"><option value="">Unassigned</option>{members.map(member => <option key={member.id} value={member.id}>{member.user.name ?? member.user.email}</option>)}</select></label>}
-          <label className="text-xs font-bold text-[#59645c]">Provider<input name="vetName" maxLength={100} placeholder="Vet, farrier, or clinic" className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal" /></label>
-          <label className="text-xs font-bold text-[#59645c] sm:col-span-2">Notes<textarea name="notes" rows={3} className="mt-2 w-full rounded-xl border border-[#d9d6cd] bg-white px-3 py-3 text-sm font-normal" /></label>
-        </CareDialog>}
+        {canAssign && <ScheduleCareDialog horses={horses} members={members} selectedHorseId={selected?.id} />}
       </header>
 
       <form action="/care" className="reinwell-form premium-card mb-6 flex flex-wrap items-end gap-3 rounded-2xl p-4"><input type="hidden" name="horseId" value={horseId ?? ''} /><label>Task assignments<select name="assigned" defaultValue={assigned ?? ''}><option value="">All tasks</option><option value="mine">Assigned to me</option><option value="unassigned">Unassigned</option></select></label><button className="button-primary">Filter tasks</button><a href="/care" className="button-secondary">Clear filters</a></form>

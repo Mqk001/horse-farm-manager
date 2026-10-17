@@ -12,10 +12,10 @@ function actionId(name) {
   const entry = Object.entries(manifest.node).find(([, action]) => action.exportedName === name && action.filename === 'app/care/actions.ts');
   assert.ok(entry, `Compiled action ${name}`); return entry[0];
 }
-async function action(name, values, cookie) {
+async function action(name, values, cookie, path = "/care") {
   const body = new FormData(); body.set('$ACTION_ID_' + actionId(name), '');
   for (const [key, value] of Object.entries(values)) body.set(key, value);
-  const response = await fetch(base + '/care', { method: 'POST', headers: { cookie, origin: base }, body });
+  const response = await fetch(base + path, { method: 'POST', headers: { cookie, origin: base }, body });
   await response.text(); return response.status;
 }
 async function account(label, farmId, role) {
@@ -38,9 +38,24 @@ try {
   assert.equal(await db.vetItem.count({ where: { horseId: horse.id } }), 0);
   for (const nextDueDate of ['2026-02-31', '2026-99-99', 'not-a-date']) assert.equal(await action('createCareItem', { ...create, nextDueDate }, manager.cookie), 500);
   assert.equal(await db.vetItem.count({ where: { horseId: horse.id } }), 0);
-  assert.equal(await action('createCareItem', create, manager.cookie), 200);
+  assert.equal(await action('createCareItem', create, manager.cookie, '/team'), 200);
   let item = await db.vetItem.findFirstOrThrow({ where: { horseId: horse.id } });
   assert.equal(item.assignedMemberId, staff.member.id);
+  const teamHtml = await (await fetch(base + '/team', { headers: { cookie: manager.cookie } })).text();
+  assert.ok(teamHtml.includes('Team tasks'));
+  assert.ok(teamHtml.includes('Assign task'));
+  assert.ok(teamHtml.includes('Recurring farrier'));
+  assert.ok(!teamHtml.includes('Foreign care horse'));
+  const staffTeam = await (await fetch(base + '/team', { headers: { cookie: staff.cookie } })).text();
+  assert.ok(!staffTeam.includes('Assign task'));
+  assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: manager.member.id }, staff.cookie, '/team'), 500);
+  assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: foreign.member.id }, manager.cookie, '/team'), 500);
+  assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: manager.member.id }, manager.cookie, '/team'), 200);
+  assert.equal((await db.vetItem.findUniqueOrThrow({ where: { id: item.id } })).assignedMemberId, manager.member.id);
+  assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: '' }, manager.cookie, '/team'), 200);
+  assert.equal((await db.vetItem.findUniqueOrThrow({ where: { id: item.id } })).assignedMemberId, null);
+  assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: staff.member.id }, manager.cookie, '/team'), 200);
+
   assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: manager.member.id }, staff.cookie), 500);
   assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: foreign.member.id }, manager.cookie), 500);
   await db.farmMember.update({ where: { id: staff.member.id }, data: { status: 'SUSPENDED' } });

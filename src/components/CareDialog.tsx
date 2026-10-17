@@ -1,18 +1,16 @@
 'use client';
 import { useState, type ReactNode, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { Dialog } from './Dialog';
 export function CareDialog({ children, action, disabled }: { children: ReactNode; action: (data: FormData) => Promise<void>; disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-  const router = useRouter();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
     const data = new FormData(event.currentTarget);
     setBusy(true); setError('');
-    try { await action(data); setOpen(false); setSaved(true); router.refresh(); }
+    try { await action(data); setOpen(false); setSaved(true); window.location.reload(); }
     catch { setError('Care could not be saved. Check the fields and try again.'); }
     finally { setBusy(false); }
   }
