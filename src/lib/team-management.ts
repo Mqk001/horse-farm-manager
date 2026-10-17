@@ -20,6 +20,7 @@ export async function changeFarmMember({ farmId, actorId, memberId, role }: { fa
     // Old invitations must not restore removed access or become usable again
     // if a demoted inviter is later promoted.
     await tx.farmInvitation.updateMany({ where: { farmId, acceptedAt: null, declinedAt: null, OR: [{ email: member.user.email }, ...(!role || role === 'STAFF' ? [{ invitedById: member.userId }] : [])] }, data: { declinedAt: new Date() } });
+    if (!role) await tx.farmTask.updateMany({ where: { farmId, assignedMemberId: member.id, completedAt: null }, data: { assignedMemberId: null } });
     if (!role) await tx.vetItem.updateMany({ where: { assignedMemberId: member.id, horse: { farmId } }, data: { assignedMemberId: null } });
     return result;
   });

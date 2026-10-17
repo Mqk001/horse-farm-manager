@@ -1,3 +1,4 @@
+import { completeFarmTask } from '@/app/team/actions';
 import { DashboardActivity } from '@/components/DashboardActivity';
 import { CareTaskForm } from '@/components/CareTaskForm';
 import { completeCareItem } from '@/app/care/actions';
@@ -35,7 +36,7 @@ export default async function Dashboard() {
   const nextWeek = new Date(now); nextWeek.setUTCDate(now.getUTCDate() + 7);
 
 
-  const [horses, ridesThisWeek, recentRides, recentWashes, careItems] = await Promise.all([
+  const [horses, ridesThisWeek, recentRides, recentWashes, careItems, farmTasks] = await Promise.all([
     prisma.horse.findMany({
       where: { farmId: membership.farmId, status: { not: 'RETIRED' } },
       orderBy: { name: 'asc' },
@@ -45,6 +46,7 @@ export default async function Dashboard() {
     prisma.rideLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
     prisma.washLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
     prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek }, horse: { farmId: membership.farmId } }, include: { horse: true }, orderBy: { nextDueDate: 'asc' } }),
+    prisma.farmTask.findMany({ where: { farmId: membership.farmId, assignedMemberId: membership.id, completedAt: null }, orderBy: { createdAt: 'asc' } }),
   ]);
 
   const myTasks = careItems.filter(item => item.assignedMemberId === membership.id);
@@ -77,13 +79,14 @@ export default async function Dashboard() {
 
       <section className="premium-card mb-6 overflow-hidden rounded-3xl" aria-label="My tasks">
         <div className="flex items-center justify-between gap-3 border-b border-[#e5e2d9] px-5 py-5 sm:px-7">
-          <div><h2 className="font-display text-2xl">My tasks</h2><p className="mt-1 text-xs text-[#7b837c]">Your overdue care and tasks due in the next 7 days. Dates use UTC.</p></div>
+          <div><h2 className="font-display text-2xl">My tasks</h2><p className="mt-1 text-xs text-[#7b837c]">Your farm tasks and care due in the next 7 days. Dates use UTC.</p></div>
           <Link href="/care?assigned=mine" className="shrink-0 text-xs font-bold text-[#315c47]">View all assigned</Link>
         </div>
+        {farmTasks.map(task => <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 sm:px-7"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 text-xs text-[#657067]">Farm task · {task.dueDate ? `Due ${displayDate(task.dueDate)}` : 'No due date'}</p></div><CareTaskForm action={completeFarmTask}><input type="hidden" name="id" value={task.id} /><button className="button-primary" aria-label={`Complete ${task.title}`}>Complete</button></CareTaskForm></div>)}
         {myTasks.length ? myTasks.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e5dc] px-5 py-4 last:border-0 sm:px-7">
           <div><Link href={`/horses/${item.horseId}`} className="text-sm font-bold">{item.horse.name} · {item.itemName}</Link><p className={`mt-1 text-xs ${careStatus(item.nextDueDate!, now) === 'overdue' ? 'text-[#a24b35]' : 'text-[#657067]'}`}>{careStatus(item.nextDueDate!, now) === 'overdue' ? 'Overdue · ' : careStatus(item.nextDueDate!, now) === 'today' ? 'Due today · ' : 'Due '}{displayDate(item.nextDueDate!)}</p></div>
           <CareTaskForm action={completeCareItem}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="expectedDueDate" value={item.nextDueDate!.toISOString()} /><button className="button-primary" aria-label={`Complete ${item.itemName} for ${item.horse.name}`}>Complete</button></CareTaskForm>
-        </div>) : <p className="px-5 py-8 text-sm text-[#657067]">No care assigned to you is due in the next 7 days. <Link href="/care?assigned=mine" className="font-semibold text-[#315c47]">View all assigned care</Link></p>}
+        </div>) : !farmTasks.length ? <p className="px-5 py-8 text-sm text-[#657067]">No care assigned to you is due in the next 7 days. <Link href="/care?assigned=mine" className="font-semibold text-[#315c47]">View all assigned care</Link></p> : null}
       </section>
 
       <DashboardActivity horses={horses.map(({ id, name }) => ({ id, name }))} />

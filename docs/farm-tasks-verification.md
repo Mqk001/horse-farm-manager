@@ -1,0 +1,11 @@
+# Free-text farm tasks and Team layout — October 17, 2026
+
+Team supports typing a general farm task, selecting an active teammate, and optionally adding a due date. A horse is not required. Existing care/task reassignment remains available in a collapsed section. General tasks appear in the assignee's dashboard My tasks regardless of due date, and can be completed by that assignee or an active manager. Team shows open workloads and the five most recent completions, with immutable completion time/name. Removed members' open tasks become unassigned for reassignment.
+
+All task writes lock the farm before rereading the actor and assignee membership, sharing the team-access lock. Staff cannot create/reassign tasks or complete another person's task; foreign-farm IDs and replayed completions are rejected. Completion is conditional on remaining open.
+
+Team uses one page shell. On wide screens members sit beside task creation; smaller screens show members immediately after it. Workloads, optional due date, existing-task assignment, and invitations use disclosure controls to keep the initial view compact.
+
+Prisma hosted/local models add FarmTask. Only supabase/migrations/20261017044028_farm_tasks.sql was applied to hosted project bbawjkryrotwrkwkitmh via migration farm_tasks. No migration queue replayed. New table has RLS enabled and no anon/authenticated grants: all access is through Reinwell's authenticated server. Security advisor shows only intentional INFO rls_enabled_no_policy for this server-owned table, with no public API policy. Hosted verification confirmed zero fixture rows, RLS true, anon/authenticated access false.
+
+Validation: production build/type checks and diff checks passed; tests/farm-tasks.mjs and existing tests/care-history.mjs passed against disposable SQLite over local production HTTP. Coverage includes no-horse task creation, blank/invalid input, foreign/inactive assignees, staff denial, assignee-only dashboard visibility, reassignment, concurrent/replayed completion protection, completion attribution and removed-member cleanup. Browser verified free-text task creation, workload count refresh, staff dashboard visibility and staff completion with no recorded console warnings/errors; wide-screen layout shows members beside task creation. Production data was not used for mutation testing.

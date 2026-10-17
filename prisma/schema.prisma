@@ -54,6 +54,7 @@ model Farm {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  tasks FarmTask[]
   memberships FarmMember[]
   invitations FarmInvitation[]
   horses      Horse[]
@@ -62,6 +63,7 @@ model Farm {
 }
 
 model FarmMember {
+  assignedTasks FarmTask[]
   assignedCare VetItem[]
 
   id        String   @id @default(cuid())
@@ -239,4 +241,20 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+model FarmTask {
+  id String @id @default(cuid())
+  farmId String
+  title String
+  assignedMemberId String?
+  dueDate DateTime?
+  completedAt DateTime?
+  completedByName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  assignedMember FarmMember? @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  @@index([farmId, completedAt])
+  @@index([assignedMemberId])
 }
