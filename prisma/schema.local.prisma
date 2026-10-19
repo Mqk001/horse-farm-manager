@@ -64,6 +64,10 @@ model Farm {
 }
 
 model FarmMember {
+  careReminderEnabled Boolean @default(false)
+  reminderVersion Int @default(0)
+  reminderDeliveries ReminderDelivery[]
+
   assignedTasks FarmTask[]
   assignedCare VetItem[]
 
@@ -260,4 +264,22 @@ model FarmTask {
   assignedMember FarmMember? @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
   @@index([farmId, completedAt])
   @@index([assignedMemberId])
+}
+
+// Server-only daily delivery ledger. Payload snapshots keep provider retries identical.
+model ReminderDelivery {
+  id String @id @default(cuid())
+  memberId String
+  day String
+  status String @default("PENDING")
+  payloadJson String?
+  attempts Int @default(0)
+  leaseUntil DateTime?
+  leaseToken String?
+  sentAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member FarmMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  @@unique([memberId, day])
+  @@index([createdAt])
 }

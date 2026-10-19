@@ -8,7 +8,8 @@ export async function middleware(request: NextRequest) {
     if (error instanceof PayloadError) return NextResponse.json({ error: error.message }, { status: error.status });
     return NextResponse.json({ error: 'Could not read request body.' }, { status: 400 });
   }
-  const isPublic = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
+  // Cron authenticates its own bearer secret; unsubscribe verifies a scoped HMAC.
+  const isPublic = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy', '/reminders/unsubscribe', '/api/cron/care-reminders'].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/api/auth');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     const origin = request.headers.get('origin');
     if (origin) {

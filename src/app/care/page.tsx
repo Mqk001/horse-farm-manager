@@ -1,4 +1,6 @@
 import { OptimisticTaskRow, OptimisticTasksProvider } from '@/components/OptimisticTaskRow';
+import { CareReminderPreference } from '@/components/CareReminderPreference';
+import { remindersAvailable } from '@/lib/reminder-security';
 import { inputDate, displayDate, careStatus } from '@/lib/care-dates';
 import { canManageFarm } from '@/lib/permissions';
 import { singleParams } from '@/lib/input-validation';
@@ -65,6 +67,8 @@ export default async function CarePage({ searchParams }: { searchParams: Promise
         <div><p className="eyebrow">Scheduled care</p><h1 className="mt-3 font-display text-4xl sm:text-5xl">Care schedule</h1><p className="mt-3 max-w-xl text-sm leading-6 text-[#68736b]">Track due dates, complete care, and assign tasks. Dates use UTC.</p></div>
         {canAssign && <ScheduleCareDialog horses={horses} members={members} selectedHorseId={selected?.id} />}
       </header>
+
+      <CareReminderPreference key={membership.id} enabled={membership.careReminderEnabled} available={remindersAvailable()} manager={canAssign} farmName={membership.farm.name} />
 
       <form action="/care" className="reinwell-form premium-card mb-6 flex flex-wrap items-end gap-3 rounded-2xl p-4"><input type="hidden" name="horseId" value={horseId ?? ''} /><label>Task assignments<select name="assigned" defaultValue={assigned ?? ''}><option value="">All tasks</option><option value="mine">Assigned to me</option><option value="unassigned">Unassigned</option></select></label><button className="button-primary">Filter tasks</button><a href="/care" className="button-secondary">Clear filters</a></form>
       <section className="mb-6 grid grid-cols-3 gap-3">

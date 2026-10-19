@@ -43,7 +43,7 @@ function SidebarContents({ pathname, close, signOut, farmName, navigate, canMana
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const hidden = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding', '/auth/google/complete'].includes(pathname);
+  const hidden = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/invite', '/terms', '/privacy', '/onboarding', '/auth/google/complete', '/reminders/unsubscribe'].includes(pathname);
   const [open, setOpen] = useState(false);
   const [farmName, setFarmName] = useState('');
   const [canManage, setCanManage] = useState(false);

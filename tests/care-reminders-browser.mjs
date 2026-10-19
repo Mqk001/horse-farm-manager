@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { createHmac } from 'node:crypto';
+import { PrismaClient } from '@prisma/local-client';
+import bcrypt from 'bcryptjs';
+const require = createRequire(import.meta.url), modulePath = process.env.PLAYWRIGHT_MODULE_PATH ?? 'playwright';
+const { chromium } = require(modulePath), { expect } = require(modulePath + '/test');
+const base = process.env.TEST_BASE_URL ?? 'http://127.0.0.1:3188';
+assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
+assert.ok(process.env.TEST_DATABASE_URL?.startsWith('file:/private/tmp/'));
+assert.ok(process.env.AUTH_SECRET?.startsWith('reinwell-reminder-test-'));
+const db = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL } } });
+const farms = []; let user, browser;
+function tokenFor(member) {
+  const payload = `${member.id}.${member.reminderVersion}`;
+  return `${payload}.${createHmac('sha256', process.env.AUTH_SECRET).update(`care-reminder-unsubscribe:v1:${payload}`).digest('hex')}`;
+}
+try {
+  for (const label of ['First', 'Second']) farms.push(await db.farm.create({ data: { name: `${label} reminder farm`, code: `reminder-browser-${label}-${Date.now()}` } }));
+  user = await db.user.create({ data: { email: `reminder-browser-${Date.now()}@example.test`, name: 'Reminder Staff', password: await bcrypt.hash('Reminder-browser-123', 10), emailVerifiedAt: new Date() } });
+  const member = await db.farmMember.create({ data: { farmId: farms[0].id, userId: user.id, role: 'STAFF' } });
+  const other = await db.farmMember.create({ data: { farmId: farms[1].id, userId: user.id, role: 'MANAGER' } });
+  browser = await chromium.launch({ headless: true, ...(process.env.TEST_CHROME_PATH ? { executablePath: process.env.TEST_CHROME_PATH } : {}) });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  assert.equal((await context.request.post(base + '/api/auth/login', { headers: { origin: base }, data: { email: user.email, password: 'Reminder-browser-123' } })).status(), 200);
+  await context.addCookies([{ name: 'reinwell_farm', value: farms[0].id, url: base }]);
+  const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto(base + '/care');
+  const section = page.getByRole('region', { name: 'Care email reminders' });
+  await expect(section).toContainText('Your assigned overdue and upcoming work at First reminder farm');
+  await section.getByRole('button', { name: 'Turn on reminders', exact: true }).click();
+  await expect(section.getByRole('status')).toContainText('turned on');
+  await expect.poll(async () => (await db.farmMember.findUniqueOrThrow({ where: { id: member.id } })).careReminderEnabled).toBe(true);
+  assert.equal((await db.farmMember.findUniqueOrThrow({ where: { id: other.id } })).careReminderEnabled, false, 'Other farm preference unchanged');
+  const enabledMember = await db.farmMember.findUniqueOrThrow({ where: { id: member.id } });
+  const oldToken = tokenFor(enabledMember);
+  await page.reload(); await expect(section.getByRole('button', { name: 'Turn off reminders' })).toBeVisible();
+  assert.ok(await section.evaluate(el => el.getBoundingClientRect().right <= innerWidth), 'Preference fits phone viewport');
+  const anonymous = await browser.newContext();
+  assert.equal((await anonymous.request.get(base + '/api/cron/care-reminders')).status(), 401);
+  assert.equal((await anonymous.request.get(base + '/api/cron/care-reminders', { headers: { Authorization: 'Bearer wrong' } })).status(), 401);
+  const unsub = await anonymous.newPage();
+  await unsub.goto(base + '/reminders/unsubscribe?token=' + oldToken);
+  await expect(unsub.getByRole('button', { name: 'Turn off reminders' })).toBeVisible();
+  assert.equal((await db.farmMember.findUniqueOrThrow({ where: { id: member.id } })).careReminderEnabled, true, 'GET/scanners do not unsubscribe');
+  await unsub.getByRole('button', { name: 'Turn off reminders' }).click();
+  await expect(unsub.getByRole('heading', { name: 'Reminders turned off' })).toBeVisible();
+  assert.equal((await db.farmMember.findUniqueOrThrow({ where: { id: member.id } })).careReminderEnabled, false);
+  await page.reload(); await section.getByRole('button', { name: 'Turn on reminders', exact: true }).click();
+  await expect(section.getByRole('status')).toContainText('turned on');
+  await unsub.goto(base + '/reminders/unsubscribe?token=' + oldToken);
+  await expect(unsub.getByText('This link is no longer valid.', { exact: false })).toBeVisible();
+  assert.equal((await db.farmMember.findUniqueOrThrow({ where: { id: member.id } })).careReminderEnabled, true, 'Stale link cannot disable renewed opt-in');
+  await unsub.goto(base + '/reminders/unsubscribe?token=' + oldToken.replace(member.id, other.id));
+  await expect(unsub.getByText('This link is no longer valid.', { exact: false })).toBeVisible();
+  await section.getByRole('button', { name: 'Turn off reminders' }).click();
+  await expect(section.getByRole('status')).toContainText('turned off');
+  assert.equal((await db.farmMember.findUniqueOrThrow({ where: { id: member.id } })).careReminderEnabled, false);
+  await context.addCookies([{ name: 'reinwell_farm', value: farms[1].id, url: base }]);
+  await page.reload(); await expect(section).toContainText('Overdue and upcoming work across Second reminder farm');
+  assert.deepEqual(errors, []);
+  console.log('PASS: mobile opt-in persists, farm-scoped preferences, staff/manager copy, anonymous cron rejected, email opt-out without login, nonmutating GET, revoked/tampered links and Care-page off switch. No emails sent.');
+} finally {
+  await browser?.close(); await db.farm.deleteMany({ where: { id: { in: farms.map(farm => farm.id) } } });
+  if (user) await db.user.delete({ where: { id: user.id } }); await db.$disconnect();
+}
