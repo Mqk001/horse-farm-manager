@@ -15,8 +15,8 @@ function eligible(member: Awaited<ReturnType<typeof getMember>>) {
 
 async function buildDigest(member: Member, now: Date) {
   const manager = canManageFarm(member.role);
-  // Today plus the next three calendar days, using the same UTC dates as Care.
-  const before = new Date(startOfDay(now).getTime() + 4 * DAY);
+  // Each membership chooses its lookahead; UTC dates match Care.
+  const before = new Date(startOfDay(now).getTime() + (member.careReminderLeadDays + 1) * DAY);
   const assignment = manager ? {} : { assignedMemberId: member.id };
   const [care, tasks] = await Promise.all([
     prisma.vetItem.findMany({ where: { horse: { farmId: member.farmId, status: { not: 'RETIRED' } }, nextDueDate: { lt: before }, ...assignment },
@@ -43,12 +43,12 @@ async function buildDigest(member: Member, now: Date) {
 async function deliverToMember(memberId: string, now: Date, send: typeof sendCareReminder) {
   const day = now.toISOString().slice(0, 10);
   const member = await getMember(memberId);
-  if (!eligible(member)) return 'skipped';
+  if (!eligible(member) || member!.careReminderHourUTC > now.getUTCHours()) return 'skipped';
   let record = await prisma.reminderDelivery.findUnique({ where: { memberId_day: { memberId, day } } });
   if (!record) {
     const payload = await buildDigest(member!, now);
     try {
-      record = await prisma.reminderDelivery.create({ data: { memberId, day, status: payload ? 'PENDING' : 'SKIPPED', payloadJson: payload ? JSON.stringify({ payload, email: member!.user.email, version: member!.reminderVersion, manager: canManageFarm(member!.role) }) : null } });
+      record = await prisma.reminderDelivery.create({ data: { memberId, day, createdAt: now, status: payload ? 'PENDING' : 'SKIPPED', payloadJson: payload ? JSON.stringify({ payload, email: member!.user.email, version: member!.reminderVersion, manager: canManageFarm(member!.role) }) : null } });
     } catch (error) {
       // Another worker may have created this member/day while we prepared it.
       record = await prisma.reminderDelivery.findUnique({ where: { memberId_day: { memberId, day } } });
@@ -108,7 +108,7 @@ export async function runCareReminders(now = new Date()) {
   };
   // Bounded batches and sequential sending stay below the email concurrency cap.
   for (let processed = 0; processed < 1000;) {
-    const members = await prisma.farmMember.findMany({ where: { status: 'ACTIVE', careReminderEnabled: true, user: { emailVerifiedAt: { not: null } },
+    const members = await prisma.farmMember.findMany({ where: { status: 'ACTIVE', careReminderEnabled: true, careReminderHourUTC: { lte: now.getUTCHours() }, user: { emailVerifiedAt: { not: null } },
       reminderDeliveries: { none: { day, status: { in: ['SENT', 'SKIPPED', 'EXPIRED'] } } }, ...(cursor ? { id: { gt: cursor } } : {}) },
       select: { id: true }, orderBy: { id: 'asc' }, take: 25 });
     if (!members.length) break;

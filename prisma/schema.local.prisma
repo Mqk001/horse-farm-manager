@@ -64,6 +64,8 @@ model Farm {
 }
 
 model FarmMember {
+  careReminderLeadDays Int @default(3)
+  careReminderHourUTC Int @default(13)
   careReminderEnabled Boolean @default(false)
   reminderVersion Int @default(0)
   reminderDeliveries ReminderDelivery[]
@@ -221,6 +223,10 @@ model Settings {
 }
 
 model CareCompletion {
+  completionNotes String?
+  productUsed String?
+  costCents Int?
+  costCurrency String?
   dismissedAt DateTime?
   id              String   @id @default(cuid())
   horseId         String

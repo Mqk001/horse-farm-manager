@@ -8,7 +8,7 @@ const { chromium } = require(modulePath), { expect } = require(modulePath + '/te
 const base = process.env.TEST_BASE_URL ?? 'http://127.0.0.1:3188';
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
 assert.ok(process.env.TEST_DATABASE_URL?.startsWith('file:/private/tmp/'));
-assert.ok(process.env.AUTH_SECRET?.startsWith('reinwell-reminder-test-'));
+assert.ok(/^reinwell-(reminder|workflow)-test-/.test(process.env.AUTH_SECRET ?? ''));
 const db = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL } } });
 const farms = []; let user, browser;
 function tokenFor(member) {

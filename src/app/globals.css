@@ -106,3 +106,15 @@ html { scrollbar-gutter: stable; }
 .button-danger { display: inline-flex; align-items: center; justify-content: center; border-radius: .75rem; padding: .7rem 1rem; background: #9a3e2d; color: white; font-size: .875rem; font-weight: 650; }
 .button-danger:hover { background: #7d2d20; }
 button:disabled { cursor: not-allowed; opacity: .6; }
+@media print {
+  @page { size: A4; margin: 16mm; }
+  html:has(.care-history-print) { background: white !important; }
+  body:has(.care-history-print) { background: white !important; color: black !important; }
+  body:has(.care-history-print) > nav, body:has(.care-history-print) > header,
+  body:has(.care-history-print) > aside, body:has(.care-history-print) .care-print-controls { display: none !important; }
+  body:has(.care-history-print) .app-content { padding: 0 !important; }
+  .care-history-print { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .care-history-print .premium-card { background: white; box-shadow: none; }
+  .care-print-record { break-inside: avoid; overflow-wrap: anywhere; }
+  body:has(.care-history-print) .route-enter { animation: none !important; transform: none !important; }
+}

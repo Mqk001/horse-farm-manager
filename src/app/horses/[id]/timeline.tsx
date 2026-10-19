@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { displayCost } from '@/lib/completion-details';
 import { prisma } from '@/lib/prisma';
 
 export type TimelineParams = { from?: string; to?: string; kind?: string; month?: string; page?: string };
@@ -32,7 +33,7 @@ export async function HorseTimeline({ horseId, farmId, filters }: { horseId: str
   const events = [
     ...rides.map(r => ({ key: `ride-${r.id}`, date: r.dateTime, label: 'Ride', detail: [r.riderName, r.rideType.replaceAll('_', ' '), r.durationMinutes !== null ? `${r.durationMinutes} min` : null].filter(Boolean).join(' · '), notes: r.notes })),
     ...washes.map(w => ({ key: `groom-${w.id}`, date: w.dateTime, label: 'Grooming', detail: w.type.replaceAll('_', ' '), notes: w.notes })),
-    ...care.map(c => ({ key: `care-${c.id}`, date: c.completedAt, label: c.legacy ? 'Earlier care record' : 'Care completed', detail: [c.itemName, c.vetName, c.completedByName ? `Recorded by ${c.completedByName}` : null].filter(Boolean).join(' · '), notes: c.notes })),
+    ...care.map(c => ({ key: `care-${c.id}`, date: c.completedAt, label: c.legacy ? 'Earlier care record' : 'Care completed', detail: [c.itemName, c.vetName, c.completedByName ? `Recorded by ${c.completedByName}` : null, c.productUsed ? `Product: ${c.productUsed}` : null, displayCost(c.costCents, c.costCurrency)].filter(Boolean).join(' · '), notes: [c.notes ? `Care instructions: ${c.notes}` : null, c.completionNotes ? `Completion notes: ${c.completionNotes}` : null].filter(Boolean).join('\n') })),
     ...legacyCare.map(c => ({ key: `legacy-${c.id}`, date: c.lastDoneDate!, label: 'Earlier care record', detail: [c.itemName, c.vetName].filter(Boolean).join(' · '), notes: c.notes })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime() || a.key.localeCompare(b.key));
   const visible = events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

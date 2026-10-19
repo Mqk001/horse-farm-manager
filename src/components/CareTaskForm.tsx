@@ -1,12 +1,14 @@
 'use client';
 import { rememberDismissalUndo, dismissalUndoKey, type DismissalUndo } from '@/lib/dismissal-undo';
 import { validateFormData, PayloadError } from '@/lib/request-limits';
+import { completionDetails as parseCompletionDetails } from '@/lib/completion-details';
+import { CompletionDetailsFields } from './CompletionDetailsFields';
 
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { useOptimisticTask, useOptimisticTaskPending, type OptimisticTaskChange } from './OptimisticTaskRow';
 
-export function CareTaskForm({ action, children, className, optimistic, dismissalUndo, clearDismissalUndoScope }: { action: (data: FormData) => Promise<void>; children: ReactNode; className?: string; optimistic?: OptimisticTaskChange; dismissalUndo?: DismissalUndo; clearDismissalUndoScope?: string }) {
+export function CareTaskForm({ action, children, className, optimistic, dismissalUndo, clearDismissalUndoScope, completionDetails = false }: { action: (data: FormData) => Promise<void>; children: ReactNode; className?: string; optimistic?: OptimisticTaskChange; dismissalUndo?: DismissalUndo; clearDismissalUndoScope?: string; completionDetails?: boolean }) {
   const pagePending = useOptimisticTaskPending();
   const task = useOptimisticTask();
   const inFlight = useRef(false);
@@ -18,6 +20,10 @@ export function CareTaskForm({ action, children, className, optimistic, dismissa
     const data = new FormData(event.currentTarget);
     try {
       validateFormData(data);
+      if (completionDetails) {
+        try { parseCompletionDetails(data); }
+        catch { setError('Check the completion notes, product, and cost. Cost must be nonnegative with at most two decimal places.'); return; }
+      }
       if (optimistic && task && !task.begin(optimistic)) return;
       inFlight.current = true;
       setPending(true); setError('');
@@ -34,7 +40,7 @@ export function CareTaskForm({ action, children, className, optimistic, dismissa
     }
   }
   return <form action={action} onSubmit={submit} className={className} data-task-pending={pending ? 'true' : undefined}>
-    <fieldset disabled={pending || pagePending} className="contents">{children}</fieldset>
+    <fieldset disabled={pending || pagePending} className="contents">{children}{completionDetails && <CompletionDetailsFields />}</fieldset>
     {pending && <p role="status" className="text-xs text-[#68736b]">Saving…</p>}
     {error && <p role="alert" className="form-error text-xs">{error}</p>}
   </form>;

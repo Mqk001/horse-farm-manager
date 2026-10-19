@@ -41,7 +41,7 @@ async function main() {
     const other = await db.farm.create({ data: { name: 'Other Farm', code: `other-reminders-${Date.now()}` } }); farms.push(other.id);
     async function member(label: string, role: string, enabled = true, status = 'ACTIVE', verified = true, farmId = farm.id) {
       const user = await db.user.create({ data: { email: `${label}-${Date.now()}@example.test`, name: label, password: 'test-only', emailVerifiedAt: verified ? now : null } }); users.push(user.id);
-      return db.farmMember.create({ data: { userId: user.id, farmId, role, careReminderEnabled: enabled, status }, include: { user: true } });
+      return db.farmMember.create({ data: { userId: user.id, farmId, role, careReminderEnabled: enabled, careReminderHourUTC: 0, status }, include: { user: true } });
     }
     const manager = await member('manager', 'MANAGER'), staff = await member('staff', 'STAFF');
     await member('off', 'MANAGER', false); await member('removed', 'MANAGER', true, 'REMOVED'); await member('unverified', 'MANAGER', true, 'ACTIVE', false);
