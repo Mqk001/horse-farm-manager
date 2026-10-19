@@ -1,3 +1,4 @@
+import { HorseAvatar } from '@/components/HorseAvatar';
 import { HorseSearchFilters } from '@/components/HorseSearchFilters';
 import { SearchHighlight } from '@/components/SearchHighlight';
 import { horseSearchScore } from '@/lib/horse-search';
@@ -85,7 +86,7 @@ export default async function HorsesPage(
             return (
               <Link key={horse.id} href={`/horses/${horse.id}`} data-horse-result className="premium-card group overflow-hidden rounded-3xl transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-start justify-between p-6 pb-5">
-                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-display text-2xl ${palette}`}>{horse.name.charAt(0).toUpperCase()}</div>
+                  <HorseAvatar id={horse.id} name={horse.name} photo={horse.photo} className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl font-display text-2xl ${palette}`} />
                   <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${needsAttention ? 'bg-[#f4e5df] text-[#a24b35]' : 'bg-[#e4ece5] text-[#315c47]'}`}>{needsAttention ? 'Attention' : statusLabels[horse.status] ?? horse.status}</span>
                 </div>
                 <div className="px-6 pb-6">

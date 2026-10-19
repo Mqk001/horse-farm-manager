@@ -1,9 +1,15 @@
-import { validateRequestPayload, PayloadError } from '@/lib/request-limits';
+import { validateRequestPayload, boundedBody, PayloadError } from '@/lib/request-limits';
 import { verifySession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  try { await validateRequestPayload(request.clone(), request.nextUrl.pathname.startsWith('/api/')); }
+  try {
+    // Only this exact binary image endpoint gets a larger body allowance.
+    if (request.method === 'POST' && /^\/api\/horses\/[^/]+\/photo$/.test(request.nextUrl.pathname)) {
+      if (request.headers.get('content-type')?.toLowerCase() !== 'image/jpeg') throw new PayloadError('Upload a cropped JPEG photo.', 415);
+      await boundedBody(request.clone(), 256 * 1024);
+    } else await validateRequestPayload(request.clone(), request.nextUrl.pathname.startsWith('/api/'));
+  }
   catch (error) {
     if (error instanceof PayloadError) return NextResponse.json({ error: error.message }, { status: error.status });
     return NextResponse.json({ error: 'Could not read request body.' }, { status: 400 });

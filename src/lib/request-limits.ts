@@ -65,9 +65,10 @@ export function validateFormData(form: FormData) {
   }
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array> {
+export async function boundedBody(request: Request, maxBytes: number = REQUEST_LIMITS.bodyBytes): Promise<Uint8Array> {
+  const limitMessage = `Request body exceeds ${maxBytes / 1024} KiB.`;
   const declared = request.headers.get('content-length');
-  if (declared && (!/^\d+$/.test(declared) || Number(declared) > REQUEST_LIMITS.bodyBytes)) throw new PayloadError('Request body exceeds 64 KiB.');
+  if (declared && (!/^\d+$/.test(declared) || Number(declared) > maxBytes)) throw new PayloadError(limitMessage);
   const encoding = request.headers.get('content-encoding');
   if (encoding && encoding.toLowerCase() !== 'identity') throw new PayloadError('Compressed request bodies are not supported.', 415);
   if (!request.body) return new Uint8Array();
@@ -81,7 +82,7 @@ async function boundedBody(request: Request): Promise<Uint8Array> {
       const result = await Promise.race([reader.read(), timeout]);
       if (result.done) break;
       bytes += result.value.byteLength;
-      if (bytes > REQUEST_LIMITS.bodyBytes) throw new PayloadError('Request body exceeds 64 KiB.');
+      if (bytes > maxBytes) throw new PayloadError(limitMessage);
       chunks.push(result.value);
     }
   } catch (error) {

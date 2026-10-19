@@ -1,12 +1,12 @@
 # Incoming request and payload limits — October 17, 2026
 
-Implemented locally; not pushed or deployed. Prior command-execution and cryptography changes remain intact.
+Original limits were released October 17. The October 19 horse-photo implementation adds the narrow binary exception described below; that photo feature is not deployed yet.
 
 ## Limits and enforcement
 
 | Limit | Value | Enforcement |
 | --- | --- | --- |
-| Request body | 65536 bytes (64 KiB) | src/middleware.ts invokes src/lib/request-limits.ts before route/action handlers or authentication/password/database work. Checks Content-Length, then independently counts actual streamed bytes; missing or misleading lengths do not bypass the byte count. Includes JSON, multipart and URL-encoded form envelope overhead. |
+| Request body (default) | 65536 bytes (64 KiB) | src/middleware.ts invokes src/lib/request-limits.ts before route/action handlers or authentication/password/database work. Checks Content-Length, then independently counts actual streamed bytes; missing or misleading lengths do not bypass the byte count. Includes JSON, multipart and URL-encoded form envelope overhead. |
 | Server Actions | 64kb | next.config.js experimental.serverActions.bodySizeLimit, as a second framework boundary. This applies to Server Actions, not App Router API JSON handlers; APIs are protected by middleware. |
 | JSON nesting | 10 object/array containers | Lexical scan before JSON.parse, respecting quoted strings/escapes. Applies to unknown/unused fields too. |
 | Array length | 100 items per array | Iterative structural validation after bounded JSON parsing. No current endpoint supports bulk input; top-level API JSON must be an object. |
@@ -15,7 +15,8 @@ Implemented locally; not pushed or deployed. Prior command-execution and cryptog
 | String field length | 10000 JavaScript string units | JSON and form validator; narrower domain schemas still apply. |
 | Field/key names | 100 JavaScript string units | JSON and form validator. |
 | Form entries | 50, including duplicate names and framework metadata | Bounded multipart/URL-encoded parsing followed by validateFormData. |
-| Uploaded files | 0: uploads unsupported | Non-string FormData values rejected, including empty files. API multipart/binary bodies rejected as unsupported media. No photo/file-upload feature exists to preserve. A future upload route needs explicit separate limits. |
+| Horse photo body | 262144 bytes (256 KiB), raw image/jpeg only | Exact POST /api/horses/:id/photo route only. Streamed byte counting and deadline in middleware and handler; decoded 640×640 JPEG required, re-encoded to metadata-free WebP. No multipart or base64 uploads. |
+| Other uploaded files | 0: unsupported | Non-string FormData values rejected, including empty files. Other API multipart/binary bodies remain rejected. |
 | Request compression | Not supported | Content-Encoding other than identity rejected, preventing compressed-body expansion at application parsing. |
 | Body receipt time | 10 seconds within middleware | Streaming read deadline; slow/incomplete body yields 408 when the application boundary can respond. |
 

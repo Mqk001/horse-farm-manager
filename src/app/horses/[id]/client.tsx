@@ -1,5 +1,6 @@
 'use client';
 
+import { HorseAvatar } from '@/components/HorseAvatar';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -29,7 +30,7 @@ export function HorseDetailClient({ horse, daysSinceRide, daysSinceWash, rideOve
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#183d2f] via-[#75917c] to-[#b38a4a]" />
         <div className="flex flex-col gap-7 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] bg-[#dce7df] font-display text-4xl text-[#315c47] sm:h-24 sm:w-24">{horse.name.charAt(0).toUpperCase()}</div>
+            <HorseAvatar id={horse.id} name={horse.name} photo={horse.photo} className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] bg-[#dce7df] font-display text-4xl text-[#315c47] sm:h-24 sm:w-24" />
             <div><div className="mb-2 flex items-center gap-2"><span className="rounded-full bg-[#e4ece5] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#315c47]">{horse.status.replaceAll('_', ' ')}</span>{(rideOverdue || washOverdue) && <span className="rounded-full bg-[#f4e5df] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#a24b35]">Needs attention</span>}</div><h1 className="font-display text-4xl sm:text-5xl">{horse.name}</h1><p className="mt-2 text-sm text-[#737d75]">{[horse.breed, horse.age !== null ? `${horse.age} years old` : null, horse.colorMarkings].filter(Boolean).join(' · ') || 'Horse profile'}</p></div>
           </div>
           <div className="flex flex-wrap gap-2">

@@ -111,6 +111,7 @@ model Horse {
   id                String    @id @default(cuid())
   farmId            String?
   name              String
+  image             HorsePhoto?
   photo             String?
   age               Int?
   breed             String?
@@ -281,4 +282,13 @@ model ReminderDelivery {
   member FarmMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   @@unique([memberId, day])
   @@index([createdAt])
+}
+
+// Compact, private profile images; kept out of routine horse queries.
+model HorsePhoto {
+  horseId String @id
+  data Bytes
+  version String
+  updatedAt DateTime @updatedAt
+  horse Horse @relation(fields: [horseId], references: [id], onDelete: Cascade)
 }
