@@ -17,7 +17,9 @@ function initialize() {
     channel.onmessage = clearLocal;
   }
   window.addEventListener('storage', event => { if (event.key === CHANNEL) clearLocal(); });
-  window.addEventListener('focus', clearLocal);
+  // Focus revalidates expired data, while a quick tab switch can reuse the
+  // existing ten-second snapshot and any in-flight request.
+  window.addEventListener('focus', () => { for (const listener of listeners) listener(); });
 }
 export function invalidateWorkspaceSnapshot() {
   initialize(); clearLocal();

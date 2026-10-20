@@ -57,7 +57,7 @@ try {
   assert.equal(await action('assignFarmTask', { id: task.id, assignedMemberId: colleague.member.id }, manager.cookie), 200);
   assert.equal(await action('completeFarmTask', { id: task.id }, staff.cookie), 500);
   const completions = await Promise.all([action('completeFarmTask', { id: task.id }, colleague.cookie), action('completeFarmTask', { id: task.id }, colleague.cookie)]);
-  assert.equal(completions.filter(status => status === 200).length, 1);
+  assert.equal(completions.filter(status => status === 200).length, 2); // Safe idempotent retries retain one original completion.
   assert.equal((await db.farmTask.findUniqueOrThrow({ where: { id: task.id } })).completedByName, 'Colleague');
   const completedTeam = await (await fetch(base+'/team', { headers: { cookie: manager.cookie } })).text();
   assert.ok(completedTeam.includes('Completed work'));

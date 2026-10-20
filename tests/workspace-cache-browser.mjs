@@ -46,13 +46,18 @@ try {
   assert.ok(reads > beforeSwitch, 'Farm switch invalidates account cache');
   const beforeFocus = reads;
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(200);
+  assert.equal(reads, beforeFocus, 'Quick focus reuses a fresh workspace snapshot');
+  await page.clock.install();
+  await page.clock.fastForward(10001);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect.poll(() => reads).toBeGreaterThan(beforeFocus);
   await expect(page.getByText('Second cache farm', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible();
   await expect(second.getByText('Second cache farm', { exact: true })).toHaveCount(0);
   assert.deepEqual(errors, []);
-  console.log('PASS: three app screens and farm picker use one /api/me request; switching farms refetches; other tab receives invalidation; focus refetches; logout removes stale account UI; no browser errors');
+  console.log('PASS: three app screens and farm picker use one /api/me request; switching farms refetches; other tab receives invalidation; quick focus reuses fresh data and expired focus refetches; logout removes stale account UI; no browser errors');
 } finally {
   await browser?.close();
   for (const farm of farms) await db.farm.delete({ where: { id: farm.id } });

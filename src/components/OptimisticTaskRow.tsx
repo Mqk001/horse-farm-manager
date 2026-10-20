@@ -3,37 +3,38 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 
 export type OptimisticTaskChange = 'complete' | 'dismiss' | 'unassign';
-type PageState = { key: string; change: OptimisticTaskChange };
-const PageContext = createContext<{ state: PageState | null; begin: (key: string, change: OptimisticTaskChange) => boolean; rollback: () => void } | null>(null);
+type TaskState = { change: OptimisticTaskChange; saved?: boolean };
+const PageContext = createContext<{ states: Record<string, TaskState>; begin: (key: string, change: OptimisticTaskChange) => boolean; rollback: (key: string) => void; commit: (key: string) => void } | null>(null);
 export function OptimisticTasksProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PageState | null>(null);
-  const active = useRef(false);
+  const [states, setStates] = useState<Record<string, TaskState>>({});
+  const active = useRef(new Set<string>());
   function begin(key: string, change: OptimisticTaskChange) {
-    if (active.current) return false;
-    active.current = true; setState({ key, change }); return true;
+    if (active.current.has(key)) return false;
+    active.current.add(key); setStates(current => ({ ...current, [key]: { change } })); return true;
   }
-  function rollback() { active.current = false; setState(null); }
-  return <PageContext.Provider value={{ state, begin, rollback }}>{children}</PageContext.Provider>;
+  function rollback(key: string) {
+    active.current.delete(key);
+    setStates(current => { const next = { ...current }; delete next[key]; return next; });
+  }
+  function commit(key: string) { setStates(current => ({ ...current, [key]: { ...current[key], saved: true } })); }
+  return <PageContext.Provider value={{ states, begin, rollback, commit }}>{children}</PageContext.Provider>;
 }
-export function useOptimisticTaskPending() { return Boolean(useContext(PageContext)?.state); }
+export function useOptimisticTaskPending() { return Boolean(useContext(Context)?.pending); }
 
-type TaskContext = { begin: (change: OptimisticTaskChange) => boolean; rollback: () => void };
+type TaskContext = { pending: boolean; begin: (change: OptimisticTaskChange) => boolean; rollback: () => void; commit: () => void };
 const Context = createContext<TaskContext | null>(null);
 export function useOptimisticTask() { return useContext(Context); }
 
 export function OptimisticTaskRow({ as: Tag = 'div', taskKey, label, className, children }: { as?: 'div' | 'li' | 'article'; taskKey: string; label: string; className?: string; children: ReactNode }) {
   const page = useContext(PageContext);
   if (!page) throw new Error('Optimistic task rows require a page provider');
-  const change = page.state?.key === taskKey ? page.state.change : null;
-  function begin(next: OptimisticTaskChange) { return page!.begin(taskKey, next); }
-  function rollback() { page!.rollback(); }
-  const status = change === 'complete' ? 'Completed' : change === 'dismiss' ? 'Dismissed' : 'Unassigned';
-  return <Context.Provider value={{ begin, rollback }}>
-    <Tag className={`${className ?? ''}${change ? ' optimistic-task-pending' : ''}`} data-optimistic-pending={change ? 'true' : undefined} aria-busy={Boolean(change)}>
+  const state = page.states[taskKey];
+  const change = state?.change;
+  return <Context.Provider value={{ pending: Boolean(state), begin: next => page.begin(taskKey, next), rollback: () => page.rollback(taskKey), commit: () => page.commit(taskKey) }}>
+    <Tag hidden={state?.saved} className={`${className ?? ''}${change ? ' optimistic-task-pending' : ''}${state?.saved ? ' !hidden' : ''}`} data-optimistic-pending={change && !state?.saved ? 'true' : undefined} aria-busy={Boolean(change && !state?.saved)}>
       {children}
-      {change && <div className="optimistic-task-feedback col-span-full w-full rounded-xl bg-[#e4ece5] px-3 py-3 text-sm text-[#315c47]" role="status">
-        <p className="font-semibold">{label} · {status}</p>
-        <p className="mt-1 text-xs">Saving… Waiting for confirmation.</p>
+      {change && !state?.saved && <div className="optimistic-task-feedback col-span-full w-full rounded-xl bg-[#e4ece5] px-3 py-3 text-sm text-[#315c47]" role="status">
+        <p className="font-semibold">{label} · {change === 'complete' ? 'Saving completion…' : change === 'dismiss' ? 'Dismissing…' : 'Unassigning…'}</p>
       </div>}
     </Tag>
   </Context.Provider>;

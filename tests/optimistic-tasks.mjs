@@ -34,7 +34,7 @@ try {
     const wait = new Promise(resolve => { release = resolve; });
     let posts = 0;
     const handler = async route => {
-      if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.continue();
+      if (route.request().method() !== 'POST' || !route.request().headers()['next-action'] && !route.request().url().endsWith('/api/tasks/complete')) return route.continue();
       posts++;
       await wait;
       if (fail) await route.fulfill({ status: 500, contentType: 'text/plain', body: 'Simulated server rejection' });
@@ -51,7 +51,7 @@ try {
   let held = await gate(true);
   await completeCare.first().click();
   await expect(page.locator('[data-optimistic-pending="true"]')).toHaveCount(copies);
-  await expect(page.getByText('Optimistic Thunder · Optimistic vaccine · Completed', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Optimistic Thunder · Optimistic vaccine · Saving completion…', { exact: true }).first()).toBeVisible();
   assert.equal(await db.careCompletion.count({ where: { careItemId: care.id } }), 0);
   held.release();
   await expect(page.locator('form [role="alert"]')).toContainText('Previous view restored');
@@ -70,7 +70,7 @@ try {
 
   held = await gate();
   await page.getByRole('button', { name: 'Complete Optimistic sweep aisle', exact: true }).click();
-  await expect(page.getByText('Optimistic sweep aisle · Completed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Optimistic sweep aisle · Saving completion…', { exact: true })).toBeVisible();
   assert.equal((await db.farmTask.findUnique({ where: { id: task.id } })).completedAt, null);
   held.release();
   await expect(page.getByRole('button', { name: 'Complete Optimistic sweep aisle', exact: true })).toHaveCount(0);
@@ -84,7 +84,7 @@ try {
   const hayRow = page.locator('li').filter({ has: page.getByText('Optimistic refill hay', { exact: true }) }).last();
   held = await gate(true);
   await hayRow.getByRole('button', { name: 'Unassign', exact: true }).click();
-  await expect(page.getByText('Optimistic refill hay · Unassigned', { exact: true })).toBeVisible();
+  await expect(page.getByText('Optimistic refill hay · Unassigning…', { exact: true })).toBeVisible();
   held.release();
   await expect(hayRow.getByRole('alert')).toContainText('Previous view restored');
   await expect(hayRow.getByRole('button', { name: 'Unassign', exact: true })).toBeEnabled();
@@ -92,7 +92,7 @@ try {
   await held.stop();
   held = await gate();
   await hayRow.getByRole('button', { name: 'Unassign', exact: true }).click();
-  await expect(page.getByText('Optimistic refill hay · Unassigned', { exact: true })).toBeVisible();
+  await expect(page.getByText('Optimistic refill hay · Unassigning…', { exact: true })).toBeVisible();
   held.release();
   await expect(page.getByRole('heading', { name: 'Unassigned farm tasks' })).toBeVisible();
   assert.equal((await db.farmTask.findUnique({ where: { id: unassign.id } })).assignedMemberId, null);
@@ -101,7 +101,7 @@ try {
   const dismiss = page.getByRole('button', { name: 'Dismiss Optimistic completed work', exact: true });
   held = await gate(true);
   await dismiss.click();
-  await expect(page.getByText('Optimistic completed work · Dismissed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Optimistic completed work · Dismissing…', { exact: true })).toBeVisible();
   held.release();
   await expect(page.locator('form [role="alert"]')).toContainText('Previous view restored');
   await expect(dismiss).toBeEnabled();
@@ -109,7 +109,7 @@ try {
   await held.stop();
   held = await gate();
   await dismiss.click();
-  await expect(page.getByText('Optimistic completed work · Dismissed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Optimistic completed work · Dismissing…', { exact: true })).toBeVisible();
   held.release();
   await expect(dismiss).toHaveCount(0);
   await expect.poll(async () => Boolean((await db.farmTask.findUnique({ where: { id: reviewed.id } })).dismissedAt)).toBe(true);

@@ -104,12 +104,12 @@ try {
   history = await db.careCompletion.findUniqueOrThrow({ where: { id: history.id } });
   assert.equal(history.itemName, 'Recurring farrier'); assert.equal(history.notes, 'Original notes');
   const oldItem = await db.vetItem.create({ data: { horseId: horse.id, itemName: 'Legacy care', itemType: 'OTHER', lastDoneDate: new Date('2026-10-01'), nextDueDate: new Date('2026-10-14') } });
-  assert.equal(await action('completeCareItem', { id: oldItem.id }, manager.cookie), 200);
+  assert.equal(await action('completeCareItem', { id: oldItem.id, expectedDueDate: oldItem.nextDueDate.toISOString() }, manager.cookie), 200);
   assert.equal(await db.careCompletion.count({ where: { careItemId: oldItem.id } }), 2);
   assert.equal(await db.careCompletion.count({ where: { careItemId: oldItem.id, legacy: true } }), 1);
   const oneOff = await db.vetItem.create({ data: { horseId: horse.id, itemName: 'One-off care', itemType: 'OTHER', nextDueDate: new Date() } });
-  assert.equal(await action('completeCareItem', { id: oneOff.id }, manager.cookie), 200);
-  assert.equal(await action('completeCareItem', { id: oneOff.id }, manager.cookie), 500);
+  assert.equal(await action('completeCareItem', { id: oneOff.id, expectedDueDate: oneOff.nextDueDate.toISOString() }, manager.cookie), 200);
+  assert.equal(await action('completeCareItem', { id: oneOff.id, expectedDueDate: oneOff.nextDueDate.toISOString() }, manager.cookie), 500);
   assert.equal(await db.careCompletion.count({ where: { careItemId: oneOff.id } }), 1);
   assert.equal(await action('assignCareItem', { id: item.id, assignedMemberId: '' }, manager.cookie), 200);
   assert.equal((await db.vetItem.findUniqueOrThrow({ where: { id: item.id } })).assignedMemberId, null);

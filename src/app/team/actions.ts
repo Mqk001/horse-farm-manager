@@ -1,4 +1,5 @@
 'use server';
+import { recordFarmCompletion } from '@/lib/task-completion';
 import { invalidateTeamRevision } from '@/lib/team-revision';
 import { validateFormData } from '@/lib/request-limits';
 import { z } from 'zod';
@@ -26,18 +27,11 @@ export async function createFarmTask(data: FormData) {
   refresh(farmId);
 }
 export async function completeFarmTask(data: FormData) {
-  validateFormData(data);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).max(100).parse(data.get('id'));
-  await prisma.$transaction(async tx => {
-    await tx.farm.update({ where: { id: farmId }, data: { updatedAt: new Date() } });
-    const actor = await tx.farmMember.findUnique({ where: { farmId_userId: { farmId, userId: user.id } } });
-    if (actor?.status !== 'ACTIVE') throw new Error('Active membership required.');
-    const result = await tx.farmTask.updateMany({ where: { id, farmId, completedAt: null, ...(!canManageFarm(actor.role) ? { assignedMemberId: actor.id } : {}) }, data: { completedAt: new Date(), completedByName: user.name || user.email } });
-    if (result.count !== 1) throw new Error('Task unavailable or already completed.');
-  });
+  await recordFarmCompletion(data, { farmId, user });
   refresh(farmId);
 }
+
 export async function assignFarmTask(data: FormData) {
   validateFormData(data);
   const { farmId, user } = await requireFarm();

@@ -8,7 +8,7 @@ import { requireFarm } from '@/lib/farm-access';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { completionDetails } from '@/lib/completion-details';
+import { recordCareCompletion } from '@/lib/task-completion';
 
 const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || undefined);
 
@@ -22,12 +22,6 @@ const createCareItemSchema = z.object({
   notes: optionalText(10000),
   assignedMemberId: optionalText(100),
 });
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setUTCDate(nextDate.getUTCDate() + days);
-  return nextDate;
-}
 
 function refreshCareViews(horseId: string, farmId: string) {
   invalidateTeamRevision(farmId);
@@ -76,29 +70,9 @@ export async function createCareItem(formData: FormData) {
 }
 
 export async function completeCareItem(formData: FormData) {
-  validateFormData(formData);
-  const details = completionDetails(formData);
   const { farmId, user } = await requireFarm();
-  const id = z.string().min(1).max(100).parse(formData.get('id'));
-  const item = await prisma.vetItem.findFirst({ where: { id, horse: { farmId } } });
-  if (!item || !item.nextDueDate) throw new Error('Scheduled care item not found');
-  const expectedDue = formData.get('expectedDueDate')?.toString();
-  if (expectedDue && expectedDue !== item.nextDueDate.toISOString()) throw new Error('This task changed. Refresh before completing it.');
-  const completedAt = new Date();
-  await prisma.$transaction(async tx => {
-    const updated = await tx.vetItem.updateMany({
-      where: { id, horse: { farmId }, updatedAt: item.updatedAt, nextDueDate: item.nextDueDate },
-      data: { lastDoneDate: completedAt, nextDueDate: item.intervalDays ? addDays(completedAt, item.intervalDays) : null },
-    });
-    if (updated.count !== 1) throw new Error('This task changed. Refresh before completing it.');
-    // Preserve the existing latest completion when upgrading a local database
-    // without the PostgreSQL migration's backfill.
-    if (item.lastDoneDate && !await tx.careCompletion.findFirst({ where: { careItemId: id } })) {
-      await tx.careCompletion.create({ data: { horseId: item.horseId, careItemId: id, completedAt: item.lastDoneDate, itemName: item.itemName, itemType: item.itemType, vetName: item.vetName, notes: item.notes, legacy: true } });
-    }
-    await tx.careCompletion.create({ data: { horseId: item.horseId, careItemId: id, completedAt, itemName: item.itemName, itemType: item.itemType, vetName: item.vetName, notes: item.notes, completedByName: user.name ?? user.email, ...details } });
-  });
-  refreshCareViews(item.horseId, farmId);
+  const horseId = await recordCareCompletion(formData, { farmId, user });
+  refreshCareViews(horseId, farmId);
 }
 
 export async function assignCareItem(formData: FormData) {
