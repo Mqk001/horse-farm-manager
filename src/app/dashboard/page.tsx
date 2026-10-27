@@ -44,13 +44,13 @@ export default async function Dashboard() {
     prisma.horse.findMany({
       where: { farmId: membership.farmId, status: { not: 'RETIRED' } },
       orderBy: { name: 'asc' },
-      include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } },
+      select: { id: true, name: true, rideIntervalDays: true, washIntervalDays: true, rides: { orderBy: { dateTime: 'desc' }, take: 1, select: { dateTime: true } }, washes: { orderBy: { dateTime: 'desc' }, take: 1, select: { dateTime: true } } },
     }),
     prisma.rideLog.count({ where: { dateTime: { gte: weekAgo, lte: now }, horse: { farmId: membership.farmId } } }),
-    prisma.rideLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
-    prisma.washLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, include: { horse: true } }),
-    prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek }, horse: { farmId: membership.farmId } }, include: { horse: true }, orderBy: { nextDueDate: 'asc' } }),
-    prisma.farmTask.findMany({ where: { farmId: membership.farmId, assignedMemberId: membership.id, completedAt: null }, orderBy: { createdAt: 'asc' } }),
+    prisma.rideLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, select: { id: true, horseId: true, riderName: true, dateTime: true, horse: { select: { name: true } } } }),
+    prisma.washLog.findMany({ where: { horse: { farmId: membership.farmId } }, orderBy: { dateTime: 'desc' }, take: 5, select: { id: true, horseId: true, type: true, dateTime: true, horse: { select: { name: true } } } }),
+    prisma.vetItem.findMany({ where: { nextDueDate: { not: null, lte: nextWeek }, horse: { farmId: membership.farmId } }, select: { id: true, horseId: true, itemName: true, itemType: true, assignedMemberId: true, nextDueDate: true, horse: { select: { name: true } } }, orderBy: { nextDueDate: 'asc' } }),
+    prisma.farmTask.findMany({ where: { farmId: membership.farmId, assignedMemberId: membership.id, completedAt: null }, select: { id: true, title: true, dueDate: true }, orderBy: { createdAt: 'asc' } }),
   ]);
 
   const myTasks = careItems.filter(item => item.assignedMemberId === membership.id);

@@ -30,7 +30,7 @@ export default async function HorsesPage(
   const now = new Date();
   const horses = await prisma.horse.findMany({
     where: { farmId: membership.farmId }, orderBy: { name: 'asc' },
-    include: { rides: { orderBy: { dateTime: 'desc' }, take: 1 }, washes: { orderBy: { dateTime: 'desc' }, take: 1 } },
+    include: { rides: { orderBy: { dateTime: 'desc' }, take: 1, select: { dateTime: true } }, washes: { orderBy: { dateTime: 'desc' }, take: 1, select: { dateTime: true } } },
   });
   const attention = horses.filter((horse) => {
     const ride = horse.rides[0] ? getDaysSince(horse.rides[0].dateTime, now) : null;

@@ -16,12 +16,12 @@ import { assignCareItem, completeCareItem, rescheduleCareItem } from './actions'
 export const dynamic = 'force-dynamic';
 type CareItem = Awaited<ReturnType<typeof getCareData>>['items'][number];
 
-async function getCareData(horseId?: string) {
+async function getCareData(horseId?: string, assigned?: string) {
   const { farmId, membership } = await requireFarm();
   return Promise.all([
     prisma.horse.findMany({ where: { farmId, status: { not: 'RETIRED' } }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.vetItem.findMany({ where: { horse: { farmId }, ...(horseId ? { horseId } : {}) }, include: { horse: { select: { id: true, name: true } }, assignedMember: { include: { user: { select: { name: true, email: true } } } } }, orderBy: [{ nextDueDate: 'asc' }, { itemName: 'asc' }] }),
-    prisma.farmMember.findMany({ where: { farmId, status: 'ACTIVE' }, include: { user: { select: { name: true, email: true } } }, orderBy: { id: 'asc' } }),
+    prisma.vetItem.findMany({ where: { horse: { farmId }, nextDueDate: { not: null }, ...(horseId ? { horseId } : {}), ...(assigned === 'mine' ? { assignedMemberId: membership.id } : assigned === 'unassigned' ? { assignedMemberId: null } : {}) }, select: { id: true, horseId: true, itemName: true, itemType: true, nextDueDate: true, intervalDays: true, vetName: true, assignedMemberId: true, horse: { select: { id: true, name: true } }, assignedMember: { select: { status: true, user: { select: { name: true, email: true } } } } }, orderBy: [{ nextDueDate: 'asc' }, { itemName: 'asc' }] }),
+    prisma.farmMember.findMany({ where: { farmId, status: 'ACTIVE' }, select: { id: true, user: { select: { name: true, email: true } } }, orderBy: { id: 'asc' } }),
   ]).then(([horses, items, members]) => ({ horses, items, members, membership }));
 }
 
@@ -56,7 +56,7 @@ export default async function CarePage({ searchParams }: { searchParams: Promise
   const params = singleParams(await searchParams);
   const { horseId, assigned } = params;
   const weekly = params.view === 'week';
-  const { horses, items, members, membership } = await getCareData(horseId);
+  const { horses, items, members, membership } = await getCareData(horseId, assigned);
   const canAssign = canManageFarm(membership.role);
   const now = new Date();
   const scheduled = items.filter(item => item.nextDueDate && (assigned !== 'mine' || item.assignedMemberId === membership.id) && (assigned !== 'unassigned' || !item.assignedMemberId));
