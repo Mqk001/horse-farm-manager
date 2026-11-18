@@ -7,7 +7,7 @@ import { singleParams } from '@/lib/input-validation';
 import { requireFarm } from '@/lib/farm-access';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince, activityOverdue } from '@/lib/care-dates';
-import Link from 'next/link';
+import { WorkspaceLink as Link } from '@/components/WorkspaceLink';
 import { ArrowUpRight, Clock3, ShieldCheck, Sparkles } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';

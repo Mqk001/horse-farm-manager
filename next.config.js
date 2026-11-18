@@ -2,9 +2,10 @@
 const nextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: '64kb' },
-    // Intent-prefetched workspace screens stay fresh for only 30 seconds.
-    // Ordinary dynamic navigations still fetch current data.
-    staleTimes: { dynamic: 0, static: 30 },
+    // Reuse visited pages briefly so returning to Overview does not refetch.
+    // Writes, farm switches and logout invalidate the client router cache.
+    // Full prefetches keep their existing 30-second maximum lifetime.
+    staleTimes: { dynamic: 15, static: 30 },
   },
 };
 module.exports = nextConfig;

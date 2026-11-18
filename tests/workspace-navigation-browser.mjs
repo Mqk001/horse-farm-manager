@@ -15,6 +15,8 @@ try {
   const member = await db.farmMember.create({ data: { farmId: farm.id, userId: user.id, role: 'MANAGER' } });
   browser = await chromium.launch({ headless: true, ...(process.env.TEST_CHROME_PATH ? { executablePath: process.env.TEST_CHROME_PATH } : {}) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  // Isolate cold/intent navigation from automatic background warming.
+  await context.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: { saveData: true } }));
   assert.equal((await context.request.post(base + '/api/auth/login', { headers: { origin: base }, data: { email: user.email, password: 'Navigation-test-123' } })).status(), 200);
   await context.addCookies([{ name: 'reinwell_farm', value: farm.id, url: base }]);
   const page = await context.newPage(), errors = [];

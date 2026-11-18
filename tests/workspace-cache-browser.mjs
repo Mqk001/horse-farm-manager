@@ -16,7 +16,10 @@ try {
   const suffix = Date.now();
   for (const label of ['First cache farm', 'Second cache farm']) farms.push(await db.farm.create({ data: { name: label, code: `cache-${suffix}-${farms.length}` } }));
   user = await db.user.create({ data: { email: `cache-${suffix}@example.test`, name: 'Cache fixture', emailVerifiedAt: new Date(), password: await bcrypt.hash('Cache-test-123', 10) } });
-  for (const farm of farms) await db.farmMember.create({ data: { userId: user.id, farmId: farm.id, role: 'MANAGER' } });
+  for (const farm of farms) {
+    await db.farmMember.create({ data: { userId: user.id, farmId: farm.id, role: 'MANAGER' } });
+    await db.horse.create({ data: { farmId: farm.id, name: `${farm.name} horse` } });
+  }
   browser = await chromium.launch({ headless: true, ...(process.env.TEST_CHROME_PATH ? { executablePath: process.env.TEST_CHROME_PATH } : {}) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   assert.equal((await context.request.post(base + '/api/auth/login', { headers: { origin: base }, data: { email: user.email, password: 'Cache-test-123' } })).status(), 200);
@@ -25,7 +28,9 @@ try {
   let reads = 0;
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/me') reads++; });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
+  const firstWarm = page.waitForResponse(response => new URL(response.url()).pathname === '/horses' && response.request().headers().rsc === '1' && !response.request().headers()['next-router-prefetch']);
   await page.goto(base + '/dashboard');
+  await firstWarm;
   await expect(page.getByText('First cache farm', { exact: true })).toBeVisible();
   assert.equal(reads, 1);
   await page.getByRole('link', { name: 'Horses', exact: true }).click();
@@ -37,13 +42,20 @@ try {
   await expect(page.getByRole('button', { name: /Open Second cache farm/ })).toBeVisible();
   assert.equal(reads, 1, 'Farm picker reuses the same snapshot');
   const second = await context.newPage();
+  const secondWarm = second.waitForResponse(response => new URL(response.url()).pathname === '/horses' && response.request().headers().rsc === '1' && !response.request().headers()['next-router-prefetch']);
   await second.goto(base + '/dashboard');
+  await secondWarm;
   await expect(second.getByText('First cache farm', { exact: true })).toBeVisible();
   const beforeSwitch = reads;
   await page.getByRole('button', { name: /Open Second cache farm/ }).click();
   await expect(page.getByText('Second cache farm', { exact: true })).toBeVisible();
   await expect(second.getByText('Second cache farm', { exact: true })).toBeVisible();
   assert.ok(reads > beforeSwitch, 'Farm switch invalidates account cache');
+  for (const tab of [page, second]) {
+    await tab.getByRole('link', { name: 'Horses', exact: true }).click();
+    await expect(tab.getByRole('heading', { name: 'Second cache farm horse', exact: true })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'First cache farm horse', exact: true })).toHaveCount(0);
+  }
   const beforeFocus = reads;
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.waitForTimeout(200);

@@ -1,5 +1,6 @@
 'use client';
 
+import { WorkspacePrefetch } from './WorkspacePrefetch';
 import { WorkspaceLink } from './WorkspaceLink';
 import { readWorkspaceSnapshot, invalidateWorkspaceSnapshot, subscribeWorkspaceSnapshot } from '@/lib/workspace-client-cache';
 import { usePathname, useRouter } from 'next/navigation';
@@ -48,13 +49,13 @@ export function Navbar() {
   const [farmName, setFarmName] = useState('');
   const [canManage, setCanManage] = useState(false);
   const workspaceScope = useRef('');
+  const [prefetchScope, setPrefetchScope] = useState('');
   const [navigationTarget, setNavigationTarget] = useState<{ href: string; label: string; from: string } | null>(null);
-  const [visibleTarget, setVisibleTarget] = useState<typeof navigationTarget>(null);
   const [slowTarget, setSlowTarget] = useState<typeof navigationTarget>(null);
   const pending = navigationTarget?.from === pathname ? navigationTarget : null;
 
   useEffect(() => {
-    if (hidden) { setFarmName(''); setCanManage(false); return; }
+    if (hidden) { setFarmName(''); setCanManage(false); setPrefetchScope(''); return; }
     let stopped = false, latest = 0;
     const load = () => {
       const current = ++latest;
@@ -63,9 +64,10 @@ export function Navbar() {
           const scope = `${data.user.email}:${data.farm?.id ?? ''}:${data.farm?.role ?? ''}`;
           if (workspaceScope.current && workspaceScope.current !== scope) router.refresh();
           workspaceScope.current = scope;
+          setPrefetchScope(data.farm ? scope : '');
           setFarmName(data.farm?.name ?? ''); setCanManage(canManageFarm(data.farm?.role));
         }
-      }).catch(() => { if (!stopped && current === latest) { setFarmName(''); setCanManage(false); } });
+      }).catch(() => { if (!stopped && current === latest) { setFarmName(''); setCanManage(false); setPrefetchScope(''); } });
     };
     load();
     const unsubscribe = subscribeWorkspaceSnapshot(load);
@@ -73,11 +75,9 @@ export function Navbar() {
   }, [hidden, router]);
 
   useEffect(() => {
-    setVisibleTarget(null);
     if (!pending) return;
-    const show = window.setTimeout(() => setVisibleTarget(pending), 300);
     const timer = window.setTimeout(() => setSlowTarget(pending), 8000);
-    return () => { window.clearTimeout(show); window.clearTimeout(timer); };
+    return () => { window.clearTimeout(timer); };
   }, [pending]);
 
   useEffect(() => {
@@ -100,6 +100,7 @@ export function Navbar() {
 
   return (
     <>
+      <WorkspacePrefetch scope={prefetchScope} pathname={pathname} manager={canManage} />
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-black/5 bg-[#f5f2ea]/90 px-4 backdrop-blur-xl lg:hidden">
         <WorkspaceLink href="/dashboard" onNavigate={() => navigate('/dashboard', 'Overview')} className="font-display text-xl text-[#183d2f]">Reinwell</WorkspaceLink>
         <button onClick={() => setOpen(true)} aria-label="Open navigation" className="rounded-lg border border-black/10 bg-white/60 p-2 text-[#183d2f]"><Menu className="h-5 w-5" /></button>
@@ -114,7 +115,7 @@ export function Navbar() {
           </aside>
         </div>
       )}
-      {pending && visibleTarget === pending && <div role="status" className="fixed bottom-4 right-4 z-40 max-w-[calc(100%-2rem)] rounded-2xl border border-[#dedbd1] bg-[#fbfaf6] p-4 text-sm text-[#183d2f] shadow-xl">
+      {pending && <div role="status" className="fixed bottom-4 right-4 z-40 max-w-[calc(100%-2rem)] rounded-2xl border border-[#dedbd1] bg-[#fbfaf6] p-4 text-sm text-[#183d2f] shadow-xl">
         <p className="flex items-center gap-2"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Opening {pending.label}…</p>
         {slowTarget === pending && <p className="mt-2">Taking longer than usual. <a href={pending.href} className="font-semibold underline">Open this page directly</a></p>}
       </div>}

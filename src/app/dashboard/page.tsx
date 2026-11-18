@@ -8,7 +8,7 @@ import { CareTaskForm } from '@/components/CareTaskForm';
 import { completeCareItem } from '@/app/care/actions';
 import { displayDate } from '@/lib/care-dates';
 import { requireFarm } from '@/lib/farm-access';
-import Link from 'next/link';
+import { WorkspaceLink as Link } from '@/components/WorkspaceLink';
 import { prisma } from '@/lib/prisma';
 import { getDaysSince, activityOverdue, careStatus } from '@/lib/care-dates';
 import { AlertCircle, ArrowUpRight, CalendarDays, CheckCircle2, Clock3, ShieldCheck, Sparkles } from 'lucide-react';

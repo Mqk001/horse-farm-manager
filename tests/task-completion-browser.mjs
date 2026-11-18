@@ -19,7 +19,7 @@ try {
   }
   const staff = await member('STAFF', farms[0]), manager = await member('MANAGER', farms[0]);
   const tasks = [];
-  for (const title of ['First assigned task', 'Second assigned task', 'Failed task', 'Lost response task']) tasks.push(await db.farmTask.create({ data: { title, farmId: farms[0].id, assignedMemberId: staff.membership.id } }));
+  for (const title of ['First assigned task', 'Second assigned task', 'Failed task', 'Lost response task', 'Navigate during save task']) tasks.push(await db.farmTask.create({ data: { title, farmId: farms[0].id, assignedMemberId: staff.membership.id } }));
   const other = await db.farmTask.create({ data: { title: 'Manager only task', farmId: farms[0].id, assignedMemberId: manager.membership.id } });
   const foreign = await db.farmTask.create({ data: { title: 'Foreign task', farmId: farms[1].id } });
   const horse = await db.horse.create({ data: { name: 'Completion horse', farmId: farms[0].id } });
@@ -32,7 +32,8 @@ try {
   await context.addCookies([{ name: 'reinwell_farm', value: farms[0].id, url: base }]);
   const page = await context.newPage(), errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  let navigations = 0;
+  let navigations = 0, reconciliations = 0;
+  page.on('request', request => { if (request.headers().rsc === '1' && new URL(request.url()).pathname === '/dashboard') reconciliations++; });
   page.on('request', request => { if (request.isNavigationRequest() && request.resourceType() === 'document') navigations++; });
   await page.goto(base + '/dashboard');
   const navigationBaseline = navigations;
@@ -50,10 +51,14 @@ try {
   await button(tasks[1].title).click();
   await expect(button(tasks[1].title)).toBeHidden();
   await expect.poll(async () => Boolean((await db.farmTask.findUniqueOrThrow({ where: { id: tasks[1].id } })).completedAt)).toBe(true);
+  await page.waitForTimeout(400);
+  console.log(`Dashboard reconciliations while another save is held: ${reconciliations}`);
+  if (process.env.PERFORMANCE_BASELINE !== '1') assert.equal(reconciliations, 0, 'Defer reconciliation while another task save is pending');
   release();
   await expect.poll(async () => Boolean((await db.farmTask.findUniqueOrThrow({ where: { id: tasks[0].id } })).completedAt)).toBe(true);
   await expect(page.locator('[data-optimistic-pending="true"]')).toHaveCount(0);
   await page.unroute('**/api/tasks/complete');
+  if (process.env.PERFORMANCE_BASELINE !== '1') await expect.poll(() => reconciliations).toBe(1);
   assert.equal(navigations, navigationBaseline, 'No full-page reload on completion');
   await page.reload();
   await expect(button(tasks[0].title)).toHaveCount(0);
@@ -64,6 +69,24 @@ try {
   await expect(button(tasks[2].title)).toBeEnabled();
   assert.equal((await db.farmTask.findUniqueOrThrow({ where: { id: tasks[2].id } })).completedAt, null);
   await page.unroute('**/api/tasks/complete');
+  // A save finishing after route unmount still invalidates prefetched views.
+  let releaseNavigation;
+  const navigationHold = new Promise(resolve => { releaseNavigation = resolve; });
+  await page.route('**/api/tasks/complete', async route => { await navigationHold; await route.continue(); });
+  await button(tasks[4].title).click();
+  await page.getByRole('link', { name: 'Horses', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your horses', exact: true })).toBeVisible();
+  let horseReconciliations = 0;
+  const countHorseRefresh = request => { if (request.headers().rsc === '1' && new URL(request.url()).pathname === '/horses') horseReconciliations++; };
+  page.on('request', countHorseRefresh);
+  releaseNavigation();
+  await expect.poll(async () => Boolean((await db.farmTask.findUniqueOrThrow({ where: { id: tasks[4].id } })).completedAt)).toBe(true);
+  await expect.poll(() => horseReconciliations).toBe(1);
+  page.off('request', countHorseRefresh);
+  await page.unroute('**/api/tasks/complete');
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })).toBeVisible();
+  await expect(button(tasks[4].title)).toHaveCount(0);
   // Persist the request, then lose its response. Timeout must unlock the UI and
   // explain the uncertain outcome; a reload must show the actual saved state.
   let finish;

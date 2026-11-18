@@ -1,14 +1,13 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from './auth';
+import { COOKIE_NAME, verifySession } from './session';
+import { loadFarmContext } from './farm-context-query';
 import { prisma } from './prisma';
 export async function getFarmContext() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const selected = (await cookies()).get('reinwell_farm')?.value;
-  const memberships = await prisma.farmMember.findMany({ where: { userId: user.id, status: 'ACTIVE' }, include: { farm: true }, orderBy: { id: 'asc' } });
-  const membership = selected ? memberships.find(m => m.farmId === selected) : memberships.length === 1 ? memberships[0] : undefined;
-  return { user, memberships, membership };
+  const cookieStore = await cookies();
+  const session = await verifySession(cookieStore.get(COOKIE_NAME)?.value);
+  if (!session) return null;
+  return loadFarmContext(prisma, session, cookieStore.get('reinwell_farm')?.value);
 }
 export async function getFarmAccess() {
   const context = await getFarmContext();

@@ -5,12 +5,10 @@ import { completionDetails as parseCompletionDetails } from '@/lib/completion-de
 import { CompletionDetailsFields } from './CompletionDetailsFields';
 
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { useOptimisticTask, useOptimisticTaskPending, type OptimisticTaskChange } from './OptimisticTaskRow';
 
 export function CareTaskForm({ action, children, className, optimistic, dismissalUndo, clearDismissalUndoScope, completionDetails = false }: { action: (data: FormData) => Promise<void>; children: ReactNode; className?: string; optimistic?: OptimisticTaskChange; dismissalUndo?: DismissalUndo; clearDismissalUndoScope?: string; completionDetails?: boolean }) {
-  const router = useRouter();
   const pagePending = useOptimisticTaskPending();
   const task = useOptimisticTask();
   const inFlight = useRef(false);
@@ -44,7 +42,6 @@ export function CareTaskForm({ action, children, className, optimistic, dismissa
         task?.commit();
         inFlight.current = false;
         setPending(false);
-        router.refresh();
         return;
       }
       await action(data);
